@@ -8,6 +8,12 @@
     "swiftmodule": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Crypto/Twofish~partial.swiftmodule",
     "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Crypto/Twofish.swiftdeps"
   },
+  "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/AppFrame.swift": {
+    "dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/AppFrame.d",
+    "object": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/AppFrame.swift.o",
+    "swiftmodule": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/AppFrame~partial.swiftmodule",
+    "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/AppFrame.swiftdeps"
+  },
   "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/ByteBuf.swift": {
     "dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/ByteBuf.d",
     "object": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/ByteBuf.swift.o",
@@ -19,6 +25,12 @@
     "object": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/CRC16.swift.o",
     "swiftmodule": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/CRC16~partial.swiftmodule",
     "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/CRC16.swiftdeps"
+  },
+  "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/PumpCommands.swift": {
+    "dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/PumpCommands.d",
+    "object": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/PumpCommands.swift.o",
+    "swiftmodule": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/PumpCommands~partial.swiftmodule",
+    "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/PumpCommands.swiftdeps"
   },
   "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Version.swift": {
     "dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Version.d",
