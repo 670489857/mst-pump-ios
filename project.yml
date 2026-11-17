@@ -1,0 +1,74 @@
+name: MstPump
+options:
+  bundleIdPrefix: com.mst
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    ENABLE_BITCODE: NO
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  PumpKit:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/PumpKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mst.pumpkit
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+        BUILD_LIBRARY_FOR_DISTRIBUTION: NO
+
+  MstPump:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/App
+    dependencies:
+      - target: PumpKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mst.pump
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "迈世通泵"
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "需要蓝牙与迈世通胰岛素泵通信（扫描、配对、注射指令）。"
+        INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription: "需要蓝牙与迈世通胰岛素泵通信。"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+
+  MstPumpTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: PumpKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mst.pumptests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  MstPump:
+    build:
+      targets:
+        MstPump: all
+        MstPumpTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MstPumpTests
