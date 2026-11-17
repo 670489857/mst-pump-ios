@@ -78,10 +78,7 @@ def fetch_ipa(run_id):
         if a["name"].startswith("MstPump-unsigned-ipa"):
             os.makedirs(OUT, exist_ok=True)
             z = os.path.join(OUT, "artifact.zip")
-            req = urllib.request.Request(a["archive_download_url"])
-            req.add_header("Authorization", f"token {TOKEN}")
-            with urllib.request.urlopen(req, timeout=180) as r, open(z, "wb") as f:
-                f.write(r.read())
+            os.system(f'curl -sL -H "Authorization: token {TOKEN}" "{a["archive_download_url"]}" -o "{z}"')
             with zipfile.ZipFile(z) as zz:
                 zz.extractall(OUT)
             ipa = os.path.join(OUT, "MstPump-unsigned.ipa")

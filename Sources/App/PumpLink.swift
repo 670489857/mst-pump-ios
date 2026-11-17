@@ -3,12 +3,10 @@ import CoreBluetooth
 import Combine
 import PumpKit
 
-/// 与迈世通泵的 BLE 链路（等价 Android 的 CEL + MDCS + BGP 的合并精简版）
-/// 服务: FFE0 (读) / FFE5 (写)；特征: FFE4 (notify) / FFE9 (write)
+/// 与迈世通泵的 BLE 链路（等价 Android 的 CEL + MDCS + BGP 合并精简版）
+/// 服务: FFE0(读) / FFE5(写)；特征: FFE4(notify) / FFE9(write with response)
 @MainActor
 final class PumpLink: NSObject, ObservableObject {
-
-    // MARK: - 对外状态
 
     enum LinkState: Equatable {
         case idle, poweredOff, scanning, connecting(String), ready
@@ -21,14 +19,29 @@ final class PumpLink: NSObject, ObservableObject {
         let rssi: Int
     }
 
+    struct LogLine: Identifiable, Equatable {
+        let id = UUID()
+        let text: String
+        let outbound: Bool
+        let stamp = Date()
+    }
+
+    // MARK: - 对外状态
+
     @Published private(set) var state: LinkState = .idle
     @Published private(set) var devices: [Device] = []
     @Published private(set) var status: PumpStatus?
     @Published private(set) var lastMessage: String = ""
-    @Published private(set) var log: [String] = []
+    @Published private(set) var log: [LogLine] = []
+    @Published private(set) var history: [HistoryRecord] = []
+    @Published private(set) var lastBolus: LastBolus?
+    @Published private(set) var basalState: BasalState?
+    @Published private(set) var delivered: Double?
+    @Published private(set) var alarmsRaw: String = ""
+    @Published private(set) var primeRaw: String = ""
 
-    /// 当前连接泵的蓝牙名，同时作为 12 字节 serial 使用
     private(set) var pumpSerial: String = ""
+    private var lastKnownPeripheralID: UUID?
 
     // MARK: - CoreBluetooth
 
@@ -38,10 +51,13 @@ final class PumpLink: NSObject, ObservableObject {
     private var notifyChar: CBCharacteristic?
     private var rxBuffer: [UInt8] = []
     private var nextMsgId: UInt16 = 1
-    private var statusTimer: Timer?
+    private var pollTimer: Timer?
+    private var pendingHistory = false
+    private var autoReconnect = false
+    private var reconnectWork: DispatchWorkItem?
 
-    private static let serviceRead = CBUUID(string: "0000FFE0-0000-1000-8000-00805F9B34FB")
-    private static let serviceWrite = CBUUID(string: "0000FFE5-0000-1000-8000-00805F9B34FB")
+    private static let serviceRead: [CBUUID] = [CBUUID(string: "0000FFE0-0000-1000-8000-00805F9B34FB"),
+                                                CBUUID(string: "0000FFE5-0000-1000-8000-00805F9B34FB")]
     private static let charNotify = CBUUID(string: "0000FFE4-0000-1000-8000-00805F9B34FB")
     private static let charWrite = CBUUID(string: "0000FFE9-0000-1000-8000-00805F9B34FB")
 
@@ -53,15 +69,12 @@ final class PumpLink: NSObject, ObservableObject {
     // MARK: - 扫描 / 连接
 
     func startScan() {
-        guard central.state == .poweredOn else {
-            state = .poweredOff
-            return
-        }
+        guard central.state == .poweredOn else { state = .poweredOff; return }
         devices.removeAll()
         state = .scanning
         central.scanForPeripherals(withServices: nil,
                                    options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
-        append("开始扫描")
+        append("开始扫描", out: false)
     }
 
     func stopScan() {
@@ -72,85 +85,129 @@ final class PumpLink: NSObject, ObservableObject {
     func connect(_ device: Device) {
         central.stopScan()
         state = .connecting(device.name)
-        let p = central.retrievePeripherals(withIdentifiers: [device.id]).first
-        guard let target = p else {
-            state = .failed("无法获取设备句柄，请重新扫描")
-            return
+        lastKnownPeripheralID = device.id
+        guard let p = central.retrievePeripherals(withIdentifiers: [device.id]).first else {
+            state = .failed("无法获取设备句柄，请重新扫描"); return
         }
-        peripheral = target
-        target.delegate = self
-        central.connect(target, options: nil)
+        peripheral = p
+        p.delegate = self
+        autoReconnect = true
+        central.connect(p, options: nil)
+    }
+
+    func connectLastKnown() {
+        guard let id = lastKnownPeripheralID,
+              let p = central.retrievePeripherals(withIdentifiers: [id]).first else { return }
+        peripheral = p
+        p.delegate = self
+        autoReconnect = true
+        state = .connecting(p.name ?? "上次的泵")
+        central.connect(p, options: nil)
     }
 
     func disconnect() {
-        statusTimer?.invalidate()
-        statusTimer = nil
+        autoReconnect = false
+        reconnectWork?.cancel()
+        pollTimer?.invalidate(); pollTimer = nil
         if let p = peripheral { central.cancelPeripheralConnection(p) }
-        peripheral = nil
-        writeChar = nil
-        notifyChar = nil
+        peripheral = nil; writeChar = nil; notifyChar = nil
         state = .idle
     }
 
     // MARK: - 发送
 
     @discardableResult
-    func send(_ cmd: AppFrame.Cmd, rw: AppFrame.RW = .write, payload: [UInt8] = []) -> UInt16 {
+    private func write(_ cmd: AppFrame.Cmd, rw: AppFrame.RW, payload: [UInt8] = []) -> UInt16 {
         guard let p = peripheral, let ch = writeChar else {
-            append("未连接，命令被丢弃")
-            return 0
+            append("未连接，命令被丢弃", out: false); return 0
         }
         let msgId = nextMsgId
         nextMsgId = nextMsgId == UInt16.max ? 1 : nextMsgId + 1
         let frame = AppFrame(rw: rw, cmd: cmd, serial: pumpSerial, payload: payload, msgId: msgId)
         let bytes = frame.encode()
-        append("→ \(Bytes.hex(bytes))")
+        append(Bytes.hex(bytes, separator: " "), out: true)
         p.writeValue(Data(bytes), for: ch, type: .withResponse)
         return msgId
     }
 
-    func requestStatus() {
-        send(.fullStatus, rw: .read)
+    // MARK: 命令
+
+    func requestStatus() { write(.fullStatus, rw: .read) }
+
+    func syncTime() {
+        write(.timeSync, rw: .write, payload: PumpCommand.timeSync())
+        append("已发送校时", out: true)
     }
 
     func deliverBolus(_ units: Double) {
-        send(.bolus, payload: PumpCommand.bolus(units))
-        append("已发送大剂量 \(units) U")
+        write(.bolus, rw: .write, payload: PumpCommand.bolus(units))
+        append("打药 \(units) U", out: false)
     }
 
     func cancelBolus() {
-        send(.bolus, payload: PumpCommand.cancelBolus())
-        append("已发送「取消大剂量」")
+        write(.bolus, rw: .write, payload: PumpCommand.cancelBolus())
+        append("取消大剂量", out: false)
+    }
+
+    func deliverExtendedBolus(units: Double, minutes: Int) {
+        write(.extendedBolus, rw: .write, payload: PumpCommand.extendedBolus(units: units, minutes: minutes))
+        append("方波 \(units) U / \(minutes) 分钟", out: false)
+    }
+
+    func cancelExtendedBolus() {
+        write(.extendedBolus, rw: .write, payload: PumpCommand.cancelExtendedBolus())
+        append("取消方波", out: false)
     }
 
     func setTBR(percent: Int, minutes: Int) {
-        send(.tbr, payload: PumpCommand.tbr(percent: percent, minutes: minutes))
-        append("已发送 TBR \(percent)% / \(minutes) 分钟")
+        write(.tbr, rw: .write, payload: PumpCommand.tbr(percent: percent, minutes: minutes))
+        append("TBR \(percent)% / \(minutes) 分钟", out: false)
     }
 
     func cancelTBR() {
-        send(.tbr, payload: PumpCommand.cancelTBR())
-        append("已取消 TBR")
+        write(.tbr, rw: .write, payload: PumpCommand.cancelTBR())
+        append("取消 TBR", out: false)
     }
 
     func stopPump() {
-        send(.startStop, payload: PumpCommand.startStop(stop: true))
-        append("已发送「停止输注」")
+        write(.startStop, rw: .write, payload: PumpCommand.startStop(stop: true))
+        append("停止输注", out: false)
     }
 
     func startPump() {
-        send(.startStop, payload: PumpCommand.startStop(stop: false))
-        append("已发送「启动输注」")
+        write(.startStop, rw: .write, payload: PumpCommand.startStop(stop: false))
+        append("启动输注", out: false)
+    }
+
+    func writeBasalProfile(_ profile: BasalProfile) {
+        write(.baseRateTemplate, rw: .write, payload: profile.encode())
+        append("写入 48 段基础率模板", out: false)
+    }
+
+    /// 读历史大剂量记录：反复发 GHBRq，直到收到 GBRDRp（0xAA02 读）为止
+    func fetchHistory() {
+        history.removeAll()
+        pendingHistory = true
+        write(.history, rw: .read)
+        append("读取历史记录…", out: false)
+    }
+
+    func fetchLastBolus() { write(.lastBolus, rw: .read) }
+    func fetchBasal() { write(.lastBaseRate, rw: .read) }
+
+    func fetchAlarms() {
+        alarmsRaw = ""
+        write(.alarms, rw: .read)
+    }
+
+    func fetchPrime() {
+        primeRaw = ""
+        write(.prime, rw: .read)
     }
 
     func setAlert(_ text: String) {
         lastMessage = "⚠️ " + text
-        append("⚠️ " + text)
-    }
-
-    func syncTime() {
-        send(.timeSync, payload: PumpCommand.timeSync())
-        append("已同步手机时间")
+        append("⚠️ " + text, out: false)
     }
 
     // MARK: - 收帧
@@ -159,16 +216,13 @@ final class PumpLink: NSObject, ObservableObject {
         rxBuffer.append(contentsOf: data)
         while rxBuffer.count >= 3 {
             guard rxBuffer[0] == 0x55 else {
-                // 丢掉乱码直到下一个 0x55
-                if let idx = rxBuffer.firstIndex(of: 0x55) { rxBuffer.removeFirst(idx) } else { rxBuffer.removeAll() }
+                if let idx = rxBuffer.firstIndex(of: 0x55) { rxBuffer.removeFirst(idx) }
+                else { rxBuffer.removeAll() }
                 continue
             }
             let len = Int(rxBuffer[1]) | (Int(rxBuffer[2]) << 8)
-            guard len >= 23, len <= 512 else {
-                rxBuffer.removeAll()
-                continue
-            }
-            guard rxBuffer.count >= len else { return }   // 等后续分包
+            guard len >= 23, len <= 512 else { rxBuffer.removeAll(); continue }
+            guard rxBuffer.count >= len else { return }
             let frameBytes = Array(rxBuffer[0..<len])
             rxBuffer.removeFirst(len)
             handle(frameBytes)
@@ -176,39 +230,60 @@ final class PumpLink: NSObject, ObservableObject {
     }
 
     private func handle(_ bytes: [UInt8]) {
-        append("← \(Bytes.hex(bytes))")
+        append(Bytes.hex(bytes, separator: " "), out: false)
         guard let frame = AppFrame.decode(bytes) else {
-            append("帧解析失败")
-            return
+            lastMessage = "帧解析失败"; return
         }
-        if !frame.crcOK { append("⚠️ CRC 校验失败") }
+        if !frame.crcOK { lastMessage = "⚠️ CRC 校验失败" }
 
         switch frame.cmd {
         case .fullStatus:
             if let s = PumpStatus.parse(frame.payload) {
                 status = s
-                lastMessage = "状态已更新"
-            } else {
-                lastMessage = "状态解析失败"
+                if lastMessage.isEmpty { lastMessage = "状态已更新" }
             }
-        case .accOK, .executed:
-            lastMessage = "泵已接受"
+        case .accOK:
+            lastMessage = "泵已接受指令"
         case .executing:
             lastMessage = "执行中…"
+        case .executed:
+            if let info = ExecutedInfo.decode(frame.payload) {
+                delivered = info.delivered
+                lastMessage = String(format: "已执行，实际输注 %.1f U", info.delivered)
+            } else {
+                lastMessage = "已执行"
+            }
         case .accError:
             lastMessage = "泵拒绝：参数错误"
         case .denied:
-            lastMessage = "泵拒绝：当前不允许该操作"
+            lastMessage = "泵拒绝：当前状态不允许"
+        case .history:
+            let recs = HistoryRecord.decodeAll(frame.payload)
+            history.append(contentsOf: recs)
+            if pendingHistory { write(.history, rw: .read) }
+        case .historyDone:
+            pendingHistory = false
+            lastMessage = "历史记录读取完毕（\(history.count) 条）"
+        case .lastBolus:
+            lastBolus = LastBolus.decode(frame.payload)
+            lastMessage = "已读取最近大剂量"
+        case .lastBaseRate:
+            basalState = BasalState.decode(frame.payload)
+            lastMessage = "已读取基础率模板"
+        case .alarms:
+            alarmsRaw = Bytes.hex(frame.payload, separator: " ")
+            lastMessage = "已读取报警数据"
+        case .prime:
+            primeRaw = Bytes.hex(frame.payload, separator: " ")
+            lastMessage = "已读取排气数据"
         default:
             lastMessage = "收到 0x\(String(format: "%04X", frame.rawCmd))"
         }
     }
 
-    private func append(_ s: String) {
-        let t = DateFormatter()
-        t.dateFormat = "HH:mm:ss"
-        log.insert("\(t.string(from: Date())) \(s)", at: 0)
-        if log.count > 300 { log.removeLast(log.count - 300) }
+    private func append(_ s: String, out: Bool) {
+        log.insert(LogLine(text: s, outbound: out), at: 0)
+        if log.count > 400 { log.removeLast(log.count - 400) }
     }
 }
 
@@ -236,7 +311,6 @@ extension PumpLink: CBCentralManagerDelegate {
                                     advertisementData: [String: Any],
                                     rssi RSSI: NSNumber) {
         let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name ?? ""
-        // 泵名形如 IP4-1234567 / IP4.1234567
         guard name.range(of: #"^IP\d[\.\-]"#, options: .regularExpression) != nil else { return }
         Task { @MainActor in
             let dev = Device(id: peripheral.identifier, name: name, rssi: RSSI.intValue)
@@ -250,8 +324,8 @@ extension PumpLink: CBCentralManagerDelegate {
 
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor in
-            self.append("已连接，发现服务…")
-            peripheral.discoverServices([PumpLink.serviceRead, PumpLink.serviceWrite])
+            self.append("已连接，发现服务…", out: false)
+            peripheral.discoverServices(PumpLink.serviceRead)
         }
     }
 
@@ -263,11 +337,19 @@ extension PumpLink: CBCentralManagerDelegate {
 
     nonisolated func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         Task { @MainActor in
-            self.statusTimer?.invalidate()
-            self.writeChar = nil
-            self.notifyChar = nil
+            self.pollTimer?.invalidate(); self.pollTimer = nil
+            self.writeChar = nil; self.notifyChar = nil
+            self.append("连接已断开 \(error?.localizedDescription ?? "")", out: false)
             self.state = .idle
-            self.append("连接已断开 \(error?.localizedDescription ?? "")")
+            if self.autoReconnect {
+                let work = DispatchWorkItem { [weak self] in
+                    guard let self, self.autoReconnect, self.state == .idle else { return }
+                    self.append("自动重连…", out: false)
+                    self.connectLastKnown()
+                }
+                self.reconnectWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+            }
         }
     }
 }
@@ -294,20 +376,21 @@ extension PumpLink: CBPeripheralDelegate {
                     self.writeChar = c
                 }
             }
-            if self.writeChar != nil && self.notifyChar != nil && self.state != .ready {
-                self.pumpSerial = peripheral.name ?? ""
-                self.state = .ready
-                self.append("就绪，泵 serial = \(self.pumpSerial)")
-                self.requestStatus()
-                self.startAutoRefresh()
-            }
+            guard self.writeChar != nil, self.notifyChar != nil, self.state != .ready else { return }
+            self.pumpSerial = peripheral.name ?? ""
+            self.state = .ready
+            self.append("就绪，泵 serial = \(self.pumpSerial)", out: false)
+            self.syncTime()
+            self.requestStatus()
+            self.fetchBasal()
+            self.startPolling()
         }
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         Task { @MainActor in
-            if let e = error { self.append("开启通知失败：\(e.localizedDescription)") }
-            else { self.append("通知已开启") }
+            if let e = error { self.append("开启通知失败：\(e.localizedDescription)", out: false) }
+            else { self.append("通知已开启", out: false) }
         }
     }
 
@@ -319,17 +402,17 @@ extension PumpLink: CBPeripheralDelegate {
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if let e = error {
-            Task { @MainActor in self.append("写入失败：\(e.localizedDescription)") }
+            Task { @MainActor in self.append("写入失败：\(e.localizedDescription)", out: false) }
         }
     }
 }
 
-// MARK: - 定时刷新
+// MARK: - 轮询
 
 extension PumpLink {
-    private func startAutoRefresh() {
-        statusTimer?.invalidate()
-        statusTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+    private func startPolling() {
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.requestStatus() }
         }
     }

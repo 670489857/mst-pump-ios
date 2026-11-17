@@ -180,6 +180,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/PumpData.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Version.swift"
         }
       ],
@@ -192,6 +196,7 @@
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/ByteBuf.swift.o",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/CRC16.swift.o",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/PumpCommands.swift.o",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/PumpData.swift.o",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Version.swift.o"
       ],
       "otherArguments" : [
@@ -242,6 +247,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/PumpData.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Version.swift.o"
         },
         {
@@ -255,6 +264,7 @@
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/ByteBuf.swift",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/CRC16.swift",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/PumpCommands.swift",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/PumpData.swift",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Version.swift"
       ],
       "tempsPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build",
@@ -270,6 +280,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/PumpDataTests.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/TwofishTests.swift"
         },
         {
@@ -282,6 +296,7 @@
       "moduleOutputPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.swiftmodule",
       "objects" : [
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/AppFrameTests.swift.o",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/PumpDataTests.swift.o",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.swift.o"
       ],
       "otherArguments" : [
@@ -316,6 +331,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/PumpDataTests.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.swift.o"
         },
         {
@@ -325,6 +344,7 @@
       ],
       "sources" : [
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/AppFrameTests.swift",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/PumpDataTests.swift",
         "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/TwofishTests.swift"
       ],
       "tempsPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build",
@@ -423,6 +443,7 @@
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/ByteBuf.swift",
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/CRC16.swift",
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/PumpCommands.swift",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/PumpData.swift",
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Version.swift",
       "-I",
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
@@ -461,6 +482,7 @@
       "-incremental",
       "-c",
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/AppFrameTests.swift",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/PumpDataTests.swift",
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/TwofishTests.swift",
       "-I",
       "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
@@ -514,6 +536,10 @@
         {
           "kind" : "file",
           "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/AppFrameTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/PumpDataTests.swift.o"
         },
         {
           "kind" : "file",

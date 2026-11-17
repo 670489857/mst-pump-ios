@@ -10,77 +10,69 @@ struct MstPumpApp: App {
 
 struct ContentView: View {
     @StateObject private var link = PumpLink()
-
-    @AppStorage("safety.maxBolus") private var maxBolusLimit: Double = 10
-    @AppStorage("safety.maxTbrPercent") private var maxTbrPercent: Int = 200
-
-    @State private var bolusText = ""
-    @State private var tbrPercent = 100
-    @State private var tbrMinutes = 30
-
-    @State private var confirmBolus: Double?
-    @State private var confirmStop = false
     @State private var showSettings = false
+
+    var body: some View {
+        TabView {
+            PumpTab(link: link, showSettings: $showSettings)
+                .tabItem { Label("泵", systemImage: "waveform.path.ecg") }
+
+            BolusTab(link: link)
+                .tabItem { Label("打药", systemImage: "syringe") }
+
+            BasalTab(link: link)
+                .tabItem { Label("基础率", systemImage: "chart.bar") }
+
+            RecordsTab(link: link)
+                .tabItem { Label("记录", systemImage: "list.bullet.rectangle") }
+
+            LogTab(link: link)
+                .tabItem { Label("日志", systemImage: "terminal") }
+        }
+        .sheet(isPresented: $showSettings) { SafetySettingsView() }
+    }
+}
+
+// MARK: - 泵 / 状态
+
+struct PumpTab: View {
+    @ObservedObject var link: PumpLink
+    @Binding var showSettings: Bool
 
     var body: some View {
         NavigationStack {
             List {
                 linkSection
-                if case .ready = link.state {
-                    statusSection
-                    bolusSection
-                    tbrSection
-                    controlSection
+                if case .ready = link.state { statusSection }
+                Section("整机控制") {
+                    Button("校时（同步手机时间）") { link.syncTime() }
+                    Button("启动输注") { link.startPump() }
+                    Button("停止输注", role: .destructive) { link.stopPump() }
                 }
-                logSection
             }
             .navigationTitle("迈世通泵")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("安全设置") { showSettings = true }
+                    Button("安全") { showSettings = true }
                 }
             }
-            .sheet(isPresented: $showSettings) {
-                SafetySettingsView(maxBolus: $maxBolusLimit, maxTbr: $maxTbrPercent)
-            }
-        }
-        .alert("确认打药", isPresented: Binding(
-            get: { confirmBolus != nil },
-            set: { if !$0 { confirmBolus = nil } }
-        )) {
-            Button("取消", role: .cancel) { confirmBolus = nil }
-            Button("确认输注", role: .destructive) {
-                if let u = confirmBolus { link.deliverBolus(u) }
-                confirmBolus = nil
-            }
-        } message: {
-            Text("即将输注 \(String(format: "%.1f", confirmBolus ?? 0)) U 大剂量，请确认剂量无误。")
-        }
-        .alert("停止输注？", isPresented: $confirmStop) {
-            Button("取消", role: .cancel) {}
-            Button("停止", role: .destructive) { link.stopPump() }
-        } message: {
-            Text("将立即停止泵的输注，基础率也会暂停。")
         }
     }
-
-    // MARK: - 连接
 
     private var linkSection: some View {
         Section("连接") {
             switch link.state {
             case .ready:
                 HStack {
-                    Label(link.pumpSerial.isEmpty ? "已连接" : link.pumpSerial, systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                    Label(link.pumpSerial.isEmpty ? "已连接" : link.pumpSerial,
+                          systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                     Spacer()
                     Button("断开") { link.disconnect() }.buttonStyle(.bordered)
                 }
             case .scanning:
                 HStack {
                     Text("扫描中…").foregroundStyle(.secondary)
-                    Spacer()
-                    ProgressView()
+                    Spacer(); ProgressView()
                     Button("停止") { link.stopScan() }
                 }
                 ForEach(link.devices) { d in
@@ -90,7 +82,7 @@ struct ContentView: View {
                         HStack {
                             Text(d.name)
                             Spacer()
-                            Text("\(d.rssi) dBm").foregroundStyle(.secondary).font(.caption)
+                            Text("\(d.rssi) dBm").font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -110,85 +102,25 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - 状态
-
     private var statusSection: some View {
         Section("泵状态") {
             if let s = link.status {
                 row("电量", "\(s.battery)%")
                 row("药量剩余", String(format: "%.1f U", s.boxVolume))
                 row("今日总量", String(format: "%.1f U", s.dayTotaled))
-                row("基础分段数", "\(s.baseSegs)")
-                row("基础率模式", "\(s.tbaseMode)")
-                row("单次最大", "\(s.maxBolus)")
-                row("日最大", "\(s.maxDaily)")
+                row("基础分段", "\(s.baseSegs) 段")
+                row("基础率模式", s.tbaseMode == 0 ? "普通" : "分段")
+                row("当前基础率", link.basalState.map { String(format: "%.2f U/h", $0.activeRate) } ?? "—")
+                row("单次上限", "\(s.maxBolus / 10) U")
+                row("日上限", "\(s.maxDaily / 10) U")
                 row("错误标志", s.errflag == 0 ? "无" : "0x\(String(format: "%02X", s.errflag))")
+                if let d = link.delivered {
+                    row("上次实际输注", String(format: "%.1f U", d))
+                }
             } else {
                 Text("等待状态…").foregroundStyle(.secondary)
             }
             Button("立即刷新") { link.requestStatus() }
-        }
-    }
-
-    // MARK: - 大剂量
-
-    private var bolusSection: some View {
-        Section("大剂量") {
-            HStack {
-                TextField("单位 U（例 2.5）", text: $bolusText)
-                    .keyboardType(.decimalPad)
-                Text("U").foregroundStyle(.secondary)
-            }
-            HStack {
-                Text("单次上限 \(String(format: "%.1f", maxBolusLimit)) U")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button("输注") {
-                    guard let u = Double(bolusText), u > 0 else { return }
-                    guard u <= maxBolusLimit else {
-                        link.setAlert("剂量 \(u) U 超过安全上限")
-                        return
-                    }
-                    confirmBolus = u
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            Button("立即取消正在输注的大剂量", role: .destructive) { link.cancelBolus() }
-        }
-    }
-
-    // MARK: - TBR
-
-    private var tbrSection: some View {
-        Section("临时基础率") {
-            Stepper("比例 \(tbrPercent)%", value: $tbrPercent, in: 0...maxTbrPercent, step: 10)
-            Stepper("时长 \(tbrMinutes) 分钟", value: $tbrMinutes, in: 15...360, step: 15)
-            HStack {
-                Button("设置 TBR") { link.setTBR(percent: tbrPercent, minutes: tbrMinutes) }
-                    .buttonStyle(.borderedProminent)
-                Spacer()
-                Button("取消 TBR") { link.cancelTBR() }
-            }
-        }
-    }
-
-    // MARK: - 控制
-
-    private var controlSection: some View {
-        Section("整机控制") {
-            Button("校时（同步手机时间）") { link.syncTime() }
-            Button("启动输注") { link.startPump() }
-            Button("停止输注", role: .destructive) { confirmStop = true }
-        }
-    }
-
-    // MARK: - 日志
-
-    private var logSection: some View {
-        Section("通信日志") {
-            ForEach(Array(link.log.prefix(40)), id: \.self) { line in
-                Text(line).font(.system(.caption2, design: .monospaced))
-            }
         }
     }
 
@@ -197,9 +129,261 @@ struct ContentView: View {
     }
 }
 
+// MARK: - 打药
+
+struct BolusTab: View {
+    @ObservedObject var link: PumpLink
+
+    @AppStorage("safety.maxBolus") private var maxBolus: Double = 10
+    @AppStorage("safety.maxTbrPercent") private var maxTbr: Int = 200
+
+    @State private var bolusText = ""
+    @State private var extUnitsText = "1"
+    @State private var extMinutes = 60
+    @State private var confirmBolus: Double?
+    @State private var confirmExt: (Double, Int)?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("常规大剂量") {
+                    HStack {
+                        TextField("单位 U（例 2.5）", text: $bolusText).keyboardType(.decimalPad)
+                        Text("U").foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text("安全上限 \(String(format: "%.1f", maxBolus)) U")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("输注") {
+                            guard let u = Double(bolusText), u > 0 else { return }
+                            guard u <= maxBolus else {
+                                link.setAlert("\(u) U 超过安全上限 \(maxBolus) U"); return
+                            }
+                            confirmBolus = u
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    Button("立即取消正在输注的大剂量", role: .destructive) { link.cancelBolus() }
+                    if let d = link.delivered {
+                        Text(String(format: "泵回报最近一次实际输注：%.1f U", d))
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("方波（延长）大剂量") {
+                    HStack {
+                        Text("总量"); Spacer()
+                        TextField("U", text: $extUnitsText)
+                            .keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 80)
+                    }
+                    Stepper("延长时间 \(extMinutes) 分钟", value: $extMinutes, in: 15...480, step: 15)
+                    HStack {
+                        Button("开始方波") {
+                            guard let u = Double(extUnitsText), u > 0, u <= maxBolus else {
+                                link.setAlert("方波总量不合法或超过上限"); return
+                            }
+                            confirmExt = (u, extMinutes)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Spacer()
+                        Button("取消方波", role: .destructive) { link.cancelExtendedBolus() }
+                    }
+                }
+
+                Section("临时基础率 TBR") {
+                    Stepper("比例 \(tbrPercent)%", value: $tbrPercent, in: 0...maxTbr, step: 10)
+                    Stepper("时长 \(tbrMinutes) 分钟", value: $tbrMinutes, in: 15...360, step: 15)
+                    HStack {
+                        Button("设置 TBR") { link.setTBR(percent: tbrPercent, minutes: tbrMinutes) }
+                            .buttonStyle(.borderedProminent)
+                        Spacer()
+                        Button("取消 TBR") { link.cancelTBR() }
+                    }
+                    Text("泵按 15 分钟步进、10% 步进接收，非整值会被截断。")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("打药")
+            .alert("确认大剂量", isPresented: Binding(
+                get: { confirmBolus != nil }, set: { if !$0 { confirmBolus = nil } })) {
+                Button("取消", role: .cancel) { confirmBolus = nil }
+                Button("确认输注", role: .destructive) {
+                    if let u = confirmBolus { link.deliverBolus(u) }
+                    confirmBolus = nil
+                }
+            } message: {
+                Text("即将输注 \(String(format: "%.1f", confirmBolus ?? 0)) U，请核对剂量。")
+            }
+            .alert("确认方波", isPresented: Binding(
+                get: { confirmExt != nil }, set: { if !$0 { confirmExt = nil } })) {
+                Button("取消", role: .cancel) { confirmExt = nil }
+                Button("确认", role: .destructive) {
+                    if let (u, m) = confirmExt { link.deliverExtendedBolus(units: u, minutes: m) }
+                    confirmExt = nil
+                }
+            } message: {
+                Text("方波 \(String(format: "%.1f", confirmExt?.0 ?? 0)) U / \(confirmExt?.1 ?? 0) 分钟")
+            }
+        }
+    }
+
+    @State private var tbrPercent = 100
+    @State private var tbrMinutes = 30
+}
+
+// MARK: - 基础率
+
+struct BasalTab: View {
+    @ObservedObject var link: PumpLink
+    @State private var uniformRate = ""
+    @State private var confirmWrite = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("泵内当前模板") {
+                    if let b = link.basalState {
+                        Text("读取时间 \(b.time.text)").font(.caption).foregroundStyle(.secondary)
+                        Text(String(format: "加权当前基础率 %.2f U/h", b.activeRate))
+                        Text(String(format: "模板日总量 %.2f U", b.profile.totalDaily))
+                            .font(.footnote).foregroundStyle(.secondary)
+                        NavigationLink("查看 48 段明细") {
+                            BasalDetailList(profile: b.profile)
+                        }
+                    } else {
+                        Text("尚未读取").foregroundStyle(.secondary)
+                    }
+                    Button("从泵读取") { link.fetchBasal() }
+                }
+
+                Section("写入新模板") {
+                    HStack {
+                        TextField("统一基础率 U/h（例 1.2）", text: $uniformRate)
+                            .keyboardType(.decimalPad)
+                        Text("U/h").foregroundStyle(.secondary)
+                    }
+                    Button("按该值写满 48 段") {
+                        guard let r = Double(uniformRate), r >= 0, r <= 5 else {
+                            link.setAlert("基础率需在 0–5 U/h 之间"); return
+                        }
+                        confirmWrite = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Text("每段 30 分钟。写入后请立刻在泵屏幕上核对，并重新「从泵读取」确认生效。")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("基础率")
+            .alert("写入基础率模板？", isPresented: $confirmWrite) {
+                Button("取消", role: .cancel) {}
+                Button("写入", role: .destructive) {
+                    let r = Double(uniformRate) ?? 0
+                    link.writeBasalProfile(BasalProfile(segments: Array(repeating: r, count: 48)))
+                }
+            } message: {
+                Text("将把 48 段全部写成 \(uniformRate) U/h 并下发给泵。")
+            }
+        }
+    }
+}
+
+struct BasalDetailList: View {
+    let profile: BasalProfile
+    var body: some View {
+        List {
+            ForEach(0..<48, id: \.self) { i in
+                HStack {
+                    Text(String(format: "%02d:%02d", i / 2, (i % 2) * 30))
+                        .font(.system(.body, design: .monospaced))
+                    Spacer()
+                    Text(String(format: "%.2f U/h", profile.segments[i]).replacingOccurrences(of: ".", with: "."))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("48 段明细")
+    }
+}
+
+// MARK: - 记录
+
+struct RecordsTab: View {
+    @ObservedObject var link: PumpLink
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("大剂量历史") {
+                    Button("读取历史记录") { link.fetchHistory() }
+                    ForEach(link.history) { r in
+                        HStack {
+                            Text(r.time.text).font(.system(.caption, design: .monospaced))
+                            Spacer()
+                            Text(String(format: "%.1f U", r.bolus))
+                        }
+                    }
+                    if link.history.isEmpty {
+                        Text("暂无记录").foregroundStyle(.secondary)
+                    }
+                }
+                Section("最近一次大剂量") {
+                    Button("读取") { link.fetchLastBolus() }
+                    if let b = link.lastBolus {
+                        HStack {
+                            Text(b.time.text).font(.system(.caption, design: .monospaced))
+                            Spacer()
+                            Text(String(format: "%.1f U", b.bolus))
+                        }
+                    }
+                }
+                Section("报警") {
+                    Button("读取报警数据") { link.fetchAlarms() }
+                    if !link.alarmsRaw.isEmpty {
+                        Text(link.alarmsRaw).font(.system(.caption2, design: .monospaced))
+                    }
+                }
+                Section("排气 / 填充") {
+                    Button("读取排气数据") { link.fetchPrime() }
+                    if !link.primeRaw.isEmpty {
+                        Text(link.primeRaw).font(.system(.caption2, design: .monospaced))
+                    }
+                }
+            }
+            .navigationTitle("记录")
+        }
+    }
+}
+
+// MARK: - 日志
+
+struct LogTab: View {
+    @ObservedObject var link: PumpLink
+    @State private var onlyOutgoing = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Toggle("只看发出的帧", isOn: $onlyOutgoing)
+                ForEach(onlyOutgoing ? link.log.filter { $0.outbound } : link.log) { l in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(l.outbound ? "→" : "←")
+                            .foregroundStyle(l.outbound ? .blue : .green)
+                            .font(.system(.caption, design: .monospaced))
+                        Text(l.text).font(.system(.caption2, design: .monospaced))
+                    }
+                }
+            }
+            .navigationTitle("通信日志")
+        }
+    }
+}
+
+// MARK: - 安全设置
+
 struct SafetySettingsView: View {
-    @Binding var maxBolus: Double
-    @Binding var maxTbr: Int
+    @AppStorage("safety.maxBolus") private var maxBolus: Double = 10
+    @AppStorage("safety.maxTbrPercent") private var maxTbr: Int = 200
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -211,7 +395,7 @@ struct SafetySettingsView: View {
                     Stepper("TBR 比例 ≤ \(maxTbr)%", value: $maxTbr, in: 50...250, step: 10)
                 }
                 Section {
-                    Text("这些上限只在本 App 内生效，用于防止误操作；泵本身的参数限制仍需在泵上确认。")
+                    Text("这些上限只在本 App 内生效，用于防误操作；泵自身的参数限制仍需在泵上确认。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }

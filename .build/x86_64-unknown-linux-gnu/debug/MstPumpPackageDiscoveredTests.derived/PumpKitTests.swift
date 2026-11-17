@@ -13,6 +13,18 @@ fileprivate extension AppFrameTests {
     ]
 }
 
+fileprivate extension PumpDataTests {
+    @available(*, deprecated, message: "Not actually deprecated. Marked as deprecated to allow inclusion of deprecated tests (which test deprecated functionality) without warnings")
+    static let __allTests__PumpDataTests = [
+        ("testBasalProfileRoundTrip", testBasalProfileRoundTrip),
+        ("testBasalState", testBasalState),
+        ("testExecutedInfo", testExecutedInfo),
+        ("testHistoryRecords", testHistoryRecords),
+        ("testLastBolus", testLastBolus),
+        ("testTimeSyncPayload", testTimeSyncPayload),
+    ]
+}
+
 fileprivate extension TwofishTests {
     @available(*, deprecated, message: "Not actually deprecated. Marked as deprecated to allow inclusion of deprecated tests (which test deprecated functionality) without warnings")
     static let __allTests__TwofishTests = [
@@ -29,6 +41,7 @@ fileprivate extension TwofishTests {
 func __PumpKitTests__allTests() -> [XCTestCaseEntry] {
     return [
         testCase(AppFrameTests.__allTests__AppFrameTests),
+        testCase(PumpDataTests.__allTests__PumpDataTests),
         testCase(TwofishTests.__allTests__TwofishTests),
     ]
 }

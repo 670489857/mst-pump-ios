@@ -29,3 +29,66 @@
 [05:20:47] 投出 run 44178819282（在飞 2）
 [05:20:53] 投出 run 44178834208（在飞 3）
 [05:20:59] 投出 run 44178854020（在飞 4）
+[05:21:05] 投出 run 44178871408（在飞 5）
+[05:21:43] run 44178819282 取消（已由 44178802180 抢到机器）
+[05:21:43] run 44178834208 取消（已由 44178802180 抢到机器）
+[05:21:44] run 44178854020 取消（已由 44178802180 抢到机器）
+[05:21:45] run 44178871408 取消（已由 44178802180 抢到机器）
+[05:21:46] 回归单人模式，等待 run 44178802180 构建结果
+[05:22:18] 回归单人模式，等待 run 44178802180 构建结果
+[05:22:48] run 44178802180 → completed/failure
+[05:22:54] 投出 run 44179194895（在飞 1）
+[05:23:00] 投出 run 44179210668（在飞 2）
+[05:23:05] 投出 run 44179226078（在飞 3）
+[05:23:11] 投出 run 44179244675（在飞 4）
+[05:23:17] 投出 run 44179263879（在飞 5）
+[05:23:54] run 44179194895 取消（已由 44179210668 抢到机器）
+[05:23:55] run 44179226078 取消（已由 44179210668 抢到机器）
+[05:23:56] run 44179244675 取消（已由 44179210668 抢到机器）
+[05:23:57] run 44179263879 取消（已由 44179210668 抢到机器）
+[05:23:58] 回归单人模式，等待 run 44179210668 构建结果
+[05:24:29] 回归单人模式，等待 run 44179210668 构建结果
+[05:25:00] 回归单人模式，等待 run 44179210668 构建结果
+[05:25:31] run 44179210668 → completed/success
+Traceback (most recent call last):
+  File "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/scripts/mac_shotgun.py", line 141, in <module>
+    main()
+  File "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/scripts/mac_shotgun.py", line 106, in main
+    if fetch_ipa(rid):
+       ^^^^^^^^^^^^^^
+  File "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/scripts/mac_shotgun.py", line 83, in fetch_ipa
+    with urllib.request.urlopen(req, timeout=180) as r, open(z, "wb") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 553, in error
+    result = self._call_chain(*args)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 745, in http_error_302
+    return self.parent.open(new, timeout=req.timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/opt/python3.12/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 403: Forbidden
