@@ -1,8 +1,0 @@
-name: macping
-on:
-  workflow_dispatch:
-jobs:
-  p:
-    runs-on: macos-13
-    steps:
-      - run: sw_vers
