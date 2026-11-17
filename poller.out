@@ -44,3 +44,5 @@ Traceback (most recent call last):
   File "/opt/python3.12/lib/python3.12/urllib/request.py", line 639, in http_error_default
     raise HTTPError(req.full_url, code, msg, hdrs, fp)
 urllib.error.HTTPError: HTTP Error 403: Forbidden
+[04:34:00] 轮询器启动，目标：抢一台免费的 macOS runner
+[04:34:07] 已触发 macos-15 → run 44170646681
