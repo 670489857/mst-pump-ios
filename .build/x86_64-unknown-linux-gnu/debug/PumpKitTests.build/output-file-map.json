@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/master.swiftdeps"
+  },
+  "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/TwofishTests.swift": {
+    "dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.d",
+    "object": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.swift.o",
+    "swiftmodule": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests~partial.swiftmodule",
+    "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.swiftdeps"
+  }
+}

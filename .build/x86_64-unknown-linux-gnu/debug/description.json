@@ -1,0 +1,514 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.xctest",
+      "productName" : "MstPumpPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+    "MstPumpPackageDiscoveredTests"
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.MstPumpPackageDiscoveredTests-debug.module" : {
+      "executable" : "/home/user/swift/usr/bin/swiftc",
+      "importPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/PumpKitTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/all-discovered-tests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.swiftmodule"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "MstPumpPackageDiscoveredTests",
+      "moduleOutputPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.swiftmodule",
+      "objects" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/PumpKitTests.swift.o",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/all-discovered-tests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-swift-version",
+        "5",
+        "-enable-batch-mode",
+        "-index-store-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-g",
+        "-j2",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-module-cache-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-Xcc",
+        "-fPIC",
+        "-package-name",
+        "mst_pump_ios",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/PumpKitTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/all-discovered-tests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.swiftmodule"
+        }
+      ],
+      "sources" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/PumpKitTests.swift",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/all-discovered-tests.swift"
+      ],
+      "tempsPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.MstPumpPackageTests-debug.module" : {
+      "executable" : "/home/user/swift/usr/bin/swiftc",
+      "importPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.swiftmodule"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "MstPumpPackageTests",
+      "moduleOutputPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.swiftmodule",
+      "objects" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-swift-version",
+        "5",
+        "-enable-batch-mode",
+        "-index-store-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-g",
+        "-j2",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-module-cache-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-Xcc",
+        "-fPIC",
+        "-package-name",
+        "mst_pump_ios",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.swiftmodule"
+        }
+      ],
+      "sources" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.PumpKit-debug.module" : {
+      "executable" : "/home/user/swift/usr/bin/swiftc",
+      "importPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Crypto/Twofish.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/ByteBuf.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/CRC16.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Version.swift"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "PumpKit",
+      "moduleOutputPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.swiftmodule",
+      "objects" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Crypto/Twofish.swift.o",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/ByteBuf.swift.o",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/CRC16.swift.o",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Version.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-swift-version",
+        "5",
+        "-enable-batch-mode",
+        "-index-store-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-g",
+        "-j2",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-module-cache-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-Xcc",
+        "-fPIC",
+        "-package-name",
+        "mst_pump_ios",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Crypto/Twofish.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/ByteBuf.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Protocol/CRC16.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build/Version.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.swiftmodule"
+        }
+      ],
+      "sources" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Crypto/Twofish.swift",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/ByteBuf.swift",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/CRC16.swift",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Version.swift"
+      ],
+      "tempsPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.PumpKitTests-debug.module" : {
+      "executable" : "/home/user/swift/usr/bin/swiftc",
+      "importPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/TwofishTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKit.swiftmodule"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "PumpKitTests",
+      "moduleOutputPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.swiftmodule",
+      "objects" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-swift-version",
+        "5",
+        "-enable-batch-mode",
+        "-index-store-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-g",
+        "-j2",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-module-cache-path",
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-Xcc",
+        "-fPIC",
+        "-package-name",
+        "mst_pump_ios",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.swiftmodule"
+        }
+      ],
+      "sources" : [
+        "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/TwofishTests.swift"
+      ],
+      "tempsPath" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "MstPumpPackageDiscoveredTests" : [
+      "/home/user/swift/usr/bin/swiftc",
+      "-module-name",
+      "MstPumpPackageDiscoveredTests",
+      "-package-name",
+      "mst_pump_ios",
+      "-incremental",
+      "-c",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/PumpKitTests.swift",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/all-discovered-tests.swift",
+      "-I",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-swift-version",
+      "5",
+      "-enable-batch-mode",
+      "-index-store-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-g",
+      "-j2",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-module-cache-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-Xcc",
+      "-fPIC",
+      "-package-name",
+      "mst_pump_ios",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/home/user/swift/usr/bin/swiftc"
+    ],
+    "MstPumpPackageTests" : [
+      "/home/user/swift/usr/bin/swiftc",
+      "-module-name",
+      "MstPumpPackageTests",
+      "-package-name",
+      "mst_pump_ios",
+      "-incremental",
+      "-c",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.derived/runner.swift",
+      "-I",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-swift-version",
+      "5",
+      "-enable-batch-mode",
+      "-index-store-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-g",
+      "-j2",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-module-cache-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-Xcc",
+      "-fPIC",
+      "-package-name",
+      "mst_pump_ios",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/home/user/swift/usr/bin/swiftc"
+    ],
+    "PumpKit" : [
+      "/home/user/swift/usr/bin/swiftc",
+      "-module-name",
+      "PumpKit",
+      "-package-name",
+      "mst_pump_ios",
+      "-incremental",
+      "-c",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Crypto/Twofish.swift",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/ByteBuf.swift",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Protocol/CRC16.swift",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Sources/PumpKit/Version.swift",
+      "-I",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-swift-version",
+      "5",
+      "-enable-batch-mode",
+      "-index-store-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-g",
+      "-j2",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-module-cache-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-Xcc",
+      "-fPIC",
+      "-package-name",
+      "mst_pump_ios",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/home/user/swift/usr/bin/swiftc"
+    ],
+    "PumpKitTests" : [
+      "/home/user/swift/usr/bin/swiftc",
+      "-module-name",
+      "PumpKitTests",
+      "-package-name",
+      "mst_pump_ios",
+      "-incremental",
+      "-c",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/Tests/PumpKitTests/TwofishTests.swift",
+      "-I",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-swift-version",
+      "5",
+      "-enable-batch-mode",
+      "-index-store-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-g",
+      "-j2",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-module-cache-path",
+      "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-Xcc",
+      "-fPIC",
+      "-package-name",
+      "mst_pump_ios",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/home/user/swift/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "MstPumpPackageDiscoveredTests" : [
+      "PumpKitTests",
+      "PumpKit"
+    ],
+    "MstPumpPackageTests" : [
+      "MstPumpPackageDiscoveredTests",
+      "PumpKitTests",
+      "PumpKit"
+    ],
+    "PumpKit" : [
+
+    ],
+    "PumpKitTests" : [
+      "PumpKit"
+    ]
+  },
+  "testDiscoveryCommands" : {
+    "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/all-discovered-tests.swift" : {
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/PumpKitTests.build/TwofishTests.swift.o"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/PumpKitTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/all-discovered-tests.swift"
+        }
+      ]
+    }
+  },
+  "testEntryPointCommands" : {
+    "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.derived/runner.swift" : {
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.swiftmodule"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  }
+}

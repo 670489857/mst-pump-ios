@@ -1,0 +1,17 @@
+{
+  "": {
+    "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/master.swiftdeps"
+  },
+  "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/PumpKitTests.swift": {
+    "dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/PumpKitTests.d",
+    "object": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/PumpKitTests.swift.o",
+    "swiftmodule": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/PumpKitTests~partial.swiftmodule",
+    "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/PumpKitTests.swiftdeps"
+  },
+  "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.derived/all-discovered-tests.swift": {
+    "dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/all-discovered-tests.d",
+    "object": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/all-discovered-tests.swift.o",
+    "swiftmodule": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/all-discovered-tests~partial.swiftmodule",
+    "swift-dependencies": "/home/user/Doubao/chats/38454483459015938/mst-pump-ios/.build/x86_64-unknown-linux-gnu/debug/MstPumpPackageDiscoveredTests.build/all-discovered-tests.swiftdeps"
+  }
+}
