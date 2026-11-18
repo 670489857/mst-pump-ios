@@ -437,6 +437,14 @@ extension PumpLink: CBPeripheralDelegate {
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        if let e = error {
+            let d = PumpLink.describe(e)
+            Task { @MainActor in
+                self.lastMessage = "读特征失败：" + d
+                self.append("读特征失败：" + d, out: false)
+            }
+            return
+        }
         guard let d = characteristic.value else { return }
         let bytes = [UInt8](d)
         Task { @MainActor in self.ingest(bytes) }
@@ -452,15 +460,6 @@ extension PumpLink: CBPeripheralDelegate {
         }
     }
 
-    nonisolated func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        if let e = error {
-            let d = PumpLink.describe(e)
-            Task { @MainActor in
-                self.lastMessage = "读特征失败：" + d
-                self.append("读特征失败：" + d, out: false)
-            }
-        }
-    }
 }
 
 // MARK: - 轮询
