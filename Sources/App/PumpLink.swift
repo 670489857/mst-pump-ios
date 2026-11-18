@@ -42,6 +42,33 @@ final class PumpLink: NSObject, ObservableObject {
     private(set) var pumpSerial: String = ""
     private var lastKnownPeripheralID: UUID?
 
+    /// 手动覆盖帧里的 12 字节 serial（留空则用蓝牙名）
+    @Published var serialOverride: String = UserDefaults.standard.string(forKey: "serial.override") ?? "" {
+        didSet { UserDefaults.standard.set(serialOverride, forKey: "serial.override") }
+    }
+
+    private var frameSerial: String {
+        let o = serialOverride.trimmingCharacters(in: .whitespaces)
+        return o.isEmpty ? pumpSerial : o
+    }
+
+    /// 给 UI 用的错误详情（CBError 只给 localizedDescription 太笼统）
+    nonisolated static func describe(_ error: Error) -> String {
+        let ns = error as NSError
+        var tip = ""
+        if ns.domain == CBATTErrorDomain {
+            switch ns.code {
+            case 0x02: tip = "（读不允许）"
+            case 0x03: tip = "（写不允许）"
+            case 0x05: tip = "（链路未加密/未配对 → 去系统蓝牙里配对后重连）"
+            case 0x0C: tip = "（需要更高安全等级）"
+            case 0x0E: tip = "（需要加密）"
+            default: tip = ""
+            }
+        }
+        return "CBError \(ns.domain)/\(ns.code): \(ns.localizedDescription)\(tip)"
+    }
+
     // MARK: - CoreBluetooth
 
     private var central: CBCentralManager!
@@ -122,7 +149,7 @@ final class PumpLink: NSObject, ObservableObject {
         }
         let msgId = nextMsgId
         nextMsgId = nextMsgId == UInt16.max ? 1 : nextMsgId + 1
-        let frame = AppFrame(rw: rw, cmd: cmd, serial: pumpSerial, payload: payload, msgId: msgId)
+        let frame = AppFrame(rw: rw, cmd: cmd, serial: frameSerial, payload: payload, msgId: msgId)
         let bytes = frame.encode()
         append(Bytes.hex(bytes, separator: " "), out: true)
         p.writeValue(Data(bytes), for: ch, type: .withResponse)
@@ -202,6 +229,22 @@ final class PumpLink: NSObject, ObservableObject {
     func fetchPrime() {
         primeRaw = ""
         write(.prime, rw: .read)
+    }
+
+    /// 直接把一串 HEX 写到 FFE9（调试用，不带任何封装）
+    func sendRawHex(_ hex: String) -> Bool {
+        guard let p = peripheral, let ch = writeChar else { return false }
+        guard let bytes = Bytes.fromHex(hex), !bytes.isEmpty else { return false }
+        append("RAW → " + Bytes.hex(bytes, separator: " "), out: true)
+        p.writeValue(Data(bytes), for: ch, type: .withResponse)
+        return true
+    }
+
+    /// 读一帧原始特征值（触发读，常用于强制 iOS 发起配对）
+    func readNotifyChar() {
+        guard let p = peripheral, let ch = notifyChar else { return }
+        append("请求读 FFE4（试探是否需要配对）", out: false)
+        p.readValue(for: ch)
     }
 
     func setAlert(_ text: String) {
@@ -401,7 +444,21 @@ extension PumpLink: CBPeripheralDelegate {
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if let e = error {
-            Task { @MainActor in self.append("写入失败：\(e.localizedDescription)", out: false) }
+            let d = PumpLink.describe(e)
+            Task { @MainActor in
+                self.lastMessage = "写入失败：" + d
+                self.append("写入失败：" + d, out: false)
+            }
+        }
+    }
+
+    nonisolated func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        if let e = error {
+            let d = PumpLink.describe(e)
+            Task { @MainActor in
+                self.lastMessage = "读特征失败：" + d
+                self.append("读特征失败：" + d, out: false)
+            }
         }
     }
 }

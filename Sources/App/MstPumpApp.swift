@@ -359,21 +359,47 @@ struct RecordsTab: View {
 struct LogTab: View {
     @ObservedObject var link: PumpLink
     @State private var onlyOutgoing = false
+    @State private var rawHex = ""
+    @State private var serialDraft = ""
 
     var body: some View {
         NavigationStack {
             List {
-                Toggle("只看发出的帧", isOn: $onlyOutgoing)
-                ForEach(onlyOutgoing ? link.log.filter { $0.outbound } : link.log) { l in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text(l.outbound ? "→" : "←")
-                            .foregroundStyle(l.outbound ? .blue : .green)
+                Section("链路诊断") {
+                    HStack {
+                        Text("serial").font(.caption).foregroundStyle(.secondary)
+                        TextField("留空=用蓝牙名（12 字节内）", text: $serialDraft)
                             .font(.system(.caption, design: .monospaced))
-                        Text(l.text).font(.system(.caption2, design: .monospaced))
+                            .autocapitalization(.allCharacters)
+                            .onSubmit { link.serialOverride = serialDraft }
+                    }
+                    Button("应用 serial") { link.serialOverride = serialDraft }
+                    Button("读一次 FFE4（试探是否需要配对）") { link.readNotifyChar() }
+                    Text("写入报 insufficient authentication 时，先去 iOS 设置→蓝牙 里配对泵，再回来重连。")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                Section("裸发 HEX") {
+                    TextField("例如 55001700A1...", text: $rawHex)
+                        .font(.system(.caption, design: .monospaced))
+                        .autocapitalization(.allCharacters)
+                    Button("直接写 FFE9") {
+                        if !link.sendRawHex(rawHex) { link.setAlert("未连接或 HEX 非法") }
+                    }
+                }
+                Section("日志") {
+                    Toggle("只看发出的帧", isOn: $onlyOutgoing)
+                    ForEach(onlyOutgoing ? link.log.filter { $0.outbound } : link.log) { l in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text(l.outbound ? "→" : "←")
+                                .foregroundStyle(l.outbound ? .blue : .green)
+                                .font(.system(.caption, design: .monospaced))
+                            Text(l.text).font(.system(.caption2, design: .monospaced))
+                        }
                     }
                 }
             }
-            .navigationTitle("通信日志")
+            .navigationTitle("通信 / 诊断")
+            .onAppear { serialDraft = link.serialOverride }
         }
     }
 }
