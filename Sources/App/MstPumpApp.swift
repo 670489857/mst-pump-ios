@@ -1,5 +1,4 @@
 import SwiftUI
-import PumpKit
 
 @main
 struct MstPumpApp: App {

@@ -33,8 +33,7 @@ targets:
     platform: iOS
     sources:
       - path: Sources/App
-    dependencies:
-      - target: PumpKit
+      - path: Sources/PumpKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mst.pump

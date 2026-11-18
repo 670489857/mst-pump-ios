@@ -1,7 +1,6 @@
 import Foundation
 import CoreBluetooth
 import Combine
-import PumpKit
 
 /// 与迈世通泵的 BLE 链路（等价 Android 的 CEL + MDCS + BGP 合并精简版）
 /// 服务: FFE0(读) / FFE5(写)；特征: FFE4(notify) / FFE9(write with response)
