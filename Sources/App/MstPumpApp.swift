@@ -365,6 +365,19 @@ struct LogTab: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("帧格式") {
+                    Picker("协议", selection: Binding(
+                        get: { link.frameVariant },
+                        set: { link.frameVariant = $0 })) {
+                        ForEach(AppFrame.Variant.allCases) { v in
+                            Text(v.title).tag(v)
+                        }
+                    }
+                    Text("官方格式：无 msgId 尾、serial 取名字分隔符后的段；AAPS 格式：多 3 字节。连不上或命令没反应就先切换这里。")
+                        .font(.caption2).foregroundStyle(.secondary)
+                    Text("解析出的 serial：\(PumpSerial.from(deviceName: link.pumpSerial))")
+                        .font(.system(.caption2, design: .monospaced))
+                }
                 Section("链路诊断") {
                     HStack {
                         Text("serial").font(.caption).foregroundStyle(.secondary)

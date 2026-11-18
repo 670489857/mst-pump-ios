@@ -49,7 +49,13 @@ final class PumpLink: NSObject, ObservableObject {
 
     private var frameSerial: String {
         let o = serialOverride.trimmingCharacters(in: .whitespaces)
-        return o.isEmpty ? pumpSerial : o
+        return o.isEmpty ? PumpSerial.from(deviceName: pumpSerial) : o
+    }
+
+    /// 帧结构：官方格式（默认）/ AAPS 格式
+    @Published var frameVariant: AppFrame.Variant =
+        AppFrame.Variant(rawValue: UserDefaults.standard.string(forKey: "frame.variant") ?? "") ?? .official {
+        didSet { UserDefaults.standard.set(frameVariant.rawValue, forKey: "frame.variant") }
     }
 
     /// 给 UI 用的错误详情（CBError 只给 localizedDescription 太笼统）
@@ -149,7 +155,8 @@ final class PumpLink: NSObject, ObservableObject {
         }
         let msgId = nextMsgId
         nextMsgId = nextMsgId == UInt16.max ? 1 : nextMsgId + 1
-        let frame = AppFrame(rw: rw, cmd: cmd, serial: frameSerial, payload: payload, msgId: msgId)
+        let frame = AppFrame(rw: rw, cmd: cmd, serial: frameSerial,
+                             payload: payload, msgId: msgId, variant: frameVariant)
         let bytes = frame.encode()
         append(Bytes.hex(bytes, separator: " "), out: true)
         p.writeValue(Data(bytes), for: ch, type: .withResponse)
@@ -214,7 +221,7 @@ final class PumpLink: NSObject, ObservableObject {
     func fetchHistory() {
         history.removeAll()
         pendingHistory = true
-        write(.history, rw: .read)
+        write(.history, rw: .read, payload: frameVariant == .official ? [0xAA] : [])
         append("读取历史记录…", out: false)
     }
 
@@ -273,7 +280,7 @@ final class PumpLink: NSObject, ObservableObject {
 
     private func handle(_ bytes: [UInt8]) {
         append(Bytes.hex(bytes, separator: " "), out: false)
-        guard let frame = AppFrame.decode(bytes) else {
+        guard let frame = AppFrame.decode(bytes, variant: frameVariant) else {
             lastMessage = "帧解析失败"; return
         }
         if !frame.crcOK { lastMessage = "⚠️ CRC 校验失败" }
@@ -302,7 +309,7 @@ final class PumpLink: NSObject, ObservableObject {
         case .history:
             let recs = HistoryRecord.decodeAll(frame.payload)
             history.append(contentsOf: recs)
-            if pendingHistory { write(.history, rw: .read) }
+            if pendingHistory { write(.history, rw: .read, payload: frameVariant == .official ? [0xAA] : []) }
         case .historyDone:
             pendingHistory = false
             lastMessage = "历史记录读取完毕（\(history.count) 条）"

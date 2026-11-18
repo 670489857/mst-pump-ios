@@ -8,6 +8,19 @@ import Foundation
 /// 其中 len = payload.count + 23，CRC 覆盖 CRC 之前的全部字节。
 public struct AppFrame {
 
+    /// 两种帧结构：官方 App（默认）/ AAPS demose 驱动（多 3 字节标志+msgId）
+    public enum Variant: String, CaseIterable, Identifiable {
+        case official = "official"
+        case legacy  = "legacy"
+        public var id: String { rawValue }
+        public var title: String {
+            switch self {
+            case .official: return "官方（IP4 App）"
+            case .legacy:   return "AAPS demose"
+            }
+        }
+    }
+
     public enum RW: UInt8 {
         case write = 0xA1
         case read  = 0xA3
@@ -48,16 +61,19 @@ public struct AppFrame {
     public let payload: [UInt8]
     public let msgId: UInt16
     public let crcOK: Bool
+    public var variant: Variant = .legacy
 
     public var cmd: Cmd { Cmd(rawValue: rawCmd) }
 
-    public init(rw: RW, cmd: Cmd, serial: String, payload: [UInt8], msgId: UInt16) {
+    public init(rw: RW, cmd: Cmd, serial: String, payload: [UInt8],
+                msgId: UInt16, variant: Variant = .legacy) {
         self.init(rw: rw, rawCmd: cmd.rawValue, serial: serial,
-                  payload: payload, msgId: msgId, crcOK: true)
+                  payload: payload, msgId: msgId, crcOK: true, variant: variant)
     }
 
     private init(rw: RW, rawCmd: UInt16, serial: String,
-                 payload: [UInt8], msgId: UInt16, crcOK: Bool) {
+                 payload: [UInt8], msgId: UInt16, crcOK: Bool, variant: Variant) {
+        self.variant = variant
         self.rw = rw
         self.rawCmd = rawCmd
         self.serial = serial
@@ -70,9 +86,10 @@ public struct AppFrame {
 
     public func encode() -> [UInt8] {
         var out = [UInt8]()
-        out.reserveCapacity(payload.count + 23)
+        let overhead = variant == .official ? 20 : 23
+        out.reserveCapacity(payload.count + overhead)
         out.append(0x55)
-        let total = UInt16(payload.count + 23)
+        let total = UInt16(payload.count + overhead)
         out.append(UInt8(total & 0xFF))
         out.append(UInt8(total >> 8))
         out.append(rw.rawValue)
@@ -80,9 +97,11 @@ public struct AppFrame {
         out.append(UInt8(rawCmd >> 8))
         out.append(contentsOf: ByteBuf.asciiBytes(serial, length: 12))
         out.append(contentsOf: payload)
-        out.append(0x01)
-        out.append(UInt8(msgId & 0xFF))
-        out.append(UInt8(msgId >> 8))
+        if variant == .legacy {
+            out.append(0x01)
+            out.append(UInt8(msgId & 0xFF))
+            out.append(UInt8(msgId >> 8))
+        }
         let crc = CRC16.modbus(out)
         out.append(UInt8(crc & 0xFF))
         out.append(UInt8(crc >> 8))
@@ -91,8 +110,9 @@ public struct AppFrame {
 
     // MARK: - 解码
 
-    public static func decode(_ bytes: [UInt8]) -> AppFrame? {
-        guard bytes.count >= 23, bytes[0] == 0x55 else { return nil }
+    public static func decode(_ bytes: [UInt8], variant: Variant = .legacy) -> AppFrame? {
+        let overhead = variant == .official ? 20 : 23
+        guard bytes.count >= overhead, bytes[0] == 0x55 else { return nil }
         let len = Int(bytes[1]) | (Int(bytes[2]) << 8)
         guard len == bytes.count else { return nil }
         guard let rw = RW(rawValue: bytes[3]) else { return nil }
@@ -102,15 +122,33 @@ public struct AppFrame {
         let serialBytes = Array(bytes[6..<18])
         let serial = String(bytes: serialBytes.filter { $0 != 0 }, encoding: .utf8) ?? ""
 
-        let payloadCount = len - 23
+        let payloadCount = max(0, len - overhead)
         let payload = payloadCount > 0 ? Array(bytes[18..<(18 + payloadCount)]) : []
-
-        // payload 之后是 1 字节标志位，再是 msgId
-        let msgId = UInt16(bytes[19 + payloadCount]) | (UInt16(bytes[20 + payloadCount]) << 8)
+        var msgId: UInt16 = 0
+        if variant == .legacy {
+            msgId = UInt16(bytes[19 + payloadCount]) | (UInt16(bytes[20 + payloadCount]) << 8)
+        }
         let crc = UInt16(bytes[len - 2]) | (UInt16(bytes[len - 1]) << 8)
         let crcOK = CRC16.modbus(Array(bytes[0..<(len - 2)])) == crc
 
         return AppFrame(rw: rw, rawCmd: rawCmd, serial: serial,
-                        payload: payload, msgId: msgId, crcOK: crcOK)
+                        payload: payload, msgId: msgId, crcOK: crcOK, variant: variant)
+    }
+}
+
+
+/// 泵序列号的正确取法（官方 App 的做法）
+/// 设备名 `IP4.1234567` / `IP4-1234567` → 取分隔符之后那一段，再补到 12 字节
+public enum PumpSerial {
+    public static func from(deviceName: String) -> String {
+        let trimmed = deviceName.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("IP4.") || trimmed.hasPrefix("IP2.") {
+            let parts = trimmed.split(separator: ".")
+            if parts.count >= 2 { return String(parts[1]) }
+        } else {
+            let parts = trimmed.split(separator: "-")
+            if parts.count >= 2 { return String(parts[1]) }
+        }
+        return trimmed
     }
 }

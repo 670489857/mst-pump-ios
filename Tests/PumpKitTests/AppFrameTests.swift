@@ -106,3 +106,35 @@ final class AppFrameTests: XCTestCase {
         XCTAssertEqual(status?.baseSegs, 48)
     }
 }
+
+final class OfficialFrameTests: XCTestCase {
+
+    func testOfficialLayoutMatchesVendorApp() {
+        // 官方：55 | len(=payload+20, 整帧长) | rw | cmd2 | serial12 | payload | crc2
+        let f = AppFrame(rw: .write, cmd: .bolus, serial: "1234567",
+                         payload: [25, 0], msgId: 0, variant: .official)
+        let b = f.encode()
+        XCTAssertEqual(b.count, 22)             // 2 + 20
+        XCTAssertEqual(b[0], 0x55)
+        XCTAssertEqual(b[1], 22)
+        XCTAssertEqual(b[3], 0xA1)
+        XCTAssertEqual(b[4], 0x02)
+        XCTAssertEqual(b[5], 0xAA)
+        XCTAssertEqual(Array(b[6..<18]), ByteBuf.asciiBytes("1234567", length: 12))
+        XCTAssertEqual(b[18], 25)
+        XCTAssertEqual(b[19], 0)
+        let crc = CRC16.modbus(Array(b[0..<20]))
+        XCTAssertEqual(b[20], UInt8(crc & 0xFF))
+        XCTAssertEqual(b[21], UInt8(crc >> 8))
+
+        let d = AppFrame.decode(b, variant: .official)
+        XCTAssertEqual(d?.payload, [25, 0])
+        XCTAssertEqual(d?.crcOK, true)
+    }
+
+    func testSerialExtraction() {
+        XCTAssertEqual(PumpSerial.from(deviceName: "IP4-1234567"), "1234567")
+        XCTAssertEqual(PumpSerial.from(deviceName: "IP4.1234567"), "1234567")
+        XCTAssertEqual(PumpSerial.from(deviceName: "IP2.987654"), "987654")
+    }
+}
