@@ -49,7 +49,10 @@ final class PumpLink: NSObject, ObservableObject {
 
     private var frameSerial: String {
         let o = serialOverride.trimmingCharacters(in: .whitespaces)
-        return o.isEmpty ? PumpSerial.from(deviceName: pumpSerial) : o
+        if !o.isEmpty { return o }
+        let digits = PumpSerial.from(deviceName: pumpSerial)
+        // AAPS 驱动会把 "IP4-"/"IP2-" 前缀正则替换成 "01"，官方 App 只发纯数字
+        return frameVariant == .legacy ? "01" + digits : digits
     }
 
     /// 帧结构：官方格式（默认）/ AAPS 格式

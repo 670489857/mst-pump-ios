@@ -375,7 +375,7 @@ struct LogTab: View {
                     }
                     Text("官方格式：无 msgId 尾、serial 取名字分隔符后的段；AAPS 格式：多 3 字节。连不上或命令没反应就先切换这里。")
                         .font(.caption2).foregroundStyle(.secondary)
-                    Text("解析出的 serial：\(PumpSerial.from(deviceName: link.pumpSerial))")
+                    Text("当前发送 serial：\(link.frameVariant == .legacy ? "01" + PumpSerial.from(deviceName: link.pumpSerial) : PumpSerial.from(deviceName: link.pumpSerial))")
                         .font(.system(.caption2, design: .monospaced))
                 }
                 Section("链路诊断") {
