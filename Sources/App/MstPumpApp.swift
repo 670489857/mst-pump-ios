@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct MstPumpApp: App {
@@ -375,8 +376,17 @@ struct LogTab: View {
                     }
                     Text("官方格式：无 msgId 尾、serial 取名字分隔符后的段；AAPS 格式：多 3 字节。连不上或命令没反应就先切换这里。")
                         .font(.caption2).foregroundStyle(.secondary)
+                    Toggle("连接后自动探测协议", isOn: Binding(
+                        get: { link.autoProbe },
+                        set: { link.autoProbe = $0 }))
+                    Text("开启时：先用官方帧读状态，3.5 秒没回帧就自动改发 AAPS 帧；哪套有应答就固定用哪套。")
+                        .font(.caption2).foregroundStyle(.secondary)
                     Text("当前发送 serial：\(link.frameVariant == .legacy ? "01" + PumpSerial.from(deviceName: link.pumpSerial) : PumpSerial.from(deviceName: link.pumpSerial))")
                         .font(.system(.caption2, design: .monospaced))
+                    if let rx = link.lastRxAt {
+                        Text("最后一次收到回帧：\(rx.formatted(date: .omitted, time: .standard)) · MTU \(link.negotiatedMTU)B")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
                 Section("链路诊断") {
                     HStack {
@@ -401,6 +411,18 @@ struct LogTab: View {
                 }
                 Section("日志") {
                     Toggle("只看发出的帧", isOn: $onlyOutgoing)
+                    HStack {
+                        Button("复制全部日志") {
+                            UIPasteboard.general.string = link.exportLog(limit: 400)
+                            link.setAlert("已复制，可直接粘贴发我")
+                        }
+                        Spacer()
+                        Button("复制最近 30 条") {
+                            UIPasteboard.general.string = link.exportLog(limit: 30)
+                            link.setAlert("已复制 30 条")
+                        }
+                    }
+                    .font(.footnote)
                     ForEach(onlyOutgoing ? link.log.filter { $0.outbound } : link.log) { l in
                         HStack(alignment: .top, spacing: 8) {
                             Text(l.outbound ? "→" : "←")

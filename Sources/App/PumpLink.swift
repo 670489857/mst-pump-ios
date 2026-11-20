@@ -38,6 +38,8 @@ final class PumpLink: NSObject, ObservableObject {
     @Published private(set) var delivered: Double?
     @Published private(set) var alarmsRaw: String = ""
     @Published private(set) var primeRaw: String = ""
+    @Published private(set) var lastRxAt: Date?
+    @Published private(set) var negotiatedMTU: Int = 0
 
     private(set) var pumpSerial: String = ""
     private var lastKnownPeripheralID: UUID?
@@ -90,6 +92,12 @@ final class PumpLink: NSObject, ObservableObject {
     private var pendingHistory = false
     private var autoReconnect = false
     private var reconnectWork: DispatchWorkItem?
+    private var probeWork: DispatchWorkItem?
+    private var noReplyWork: DispatchWorkItem?
+    /// 连接后先用官方帧试一发，3.5 秒无应答自动改发 AAPS 帧
+    @Published var autoProbe: Bool = UserDefaults.standard.object(forKey: "auto.probe") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(autoProbe, forKey: "auto.probe") }
+    }
 
     private static let serviceRead: [CBUUID] = [CBUUID(string: "0000FFE0-0000-1000-8000-00805F9B34FB"),
                                                 CBUUID(string: "0000FFE5-0000-1000-8000-00805F9B34FB")]
@@ -161,8 +169,13 @@ final class PumpLink: NSObject, ObservableObject {
         let frame = AppFrame(rw: rw, cmd: cmd, serial: frameSerial,
                              payload: payload, msgId: msgId, variant: frameVariant)
         let bytes = frame.encode()
-        append(Bytes.hex(bytes, separator: " "), out: true)
+        let tag = frameVariant == .official ? "[官]" : "[AAPS]"
+        append(tag + Bytes.hex(bytes, separator: " "), out: true)
+        if bytes.count > negotiatedMTU && negotiatedMTU > 0 {
+            append("⚠️ 帧 \(bytes.count)B 超过协商上限 \(negotiatedMTU)B", out: false)
+        }
         p.writeValue(Data(bytes), for: ch, type: .withResponse)
+        armNoReplyGuard()
         return msgId
     }
 
@@ -257,6 +270,54 @@ final class PumpLink: NSObject, ObservableObject {
         p.readValue(for: ch)
     }
 
+    /// 发命令后 6 秒没收到任何回帧 → 给出可操作提示
+    private func armNoReplyGuard() {
+        noReplyWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            guard case .ready = self.state else { return }
+            if let rx = self.lastRxAt, Date().timeIntervalSince(rx) < 6 { return }
+            self.lastMessage = "泵无应答（6 秒）：试切帧格式 / 先在系统蓝牙里配对"
+            self.append("⏱ 6 秒无回帧：若一直如此，切到另一套帧格式再试；仍未回应说明泵要求系统级配对", out: false)
+        }
+        noReplyWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: work)
+    }
+
+    /// 连接后协议探测：官方帧试一发 → 3.5s 无应答自动切 AAPS 帧再试
+    private func startProbe() {
+        guard autoProbe else {
+            syncTime(); requestStatus(); startPolling(); return
+        }
+        let probeStart = Date()
+        append("协议探测：先发官方帧读状态…", out: false)
+        write(.fullStatus, rw: .read)
+        probeWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, case .ready = self.state else { return }
+            let answered = (self.lastRxAt ?? .distantPast) > probeStart
+            if answered {
+                self.append("✅ 官方帧有应答，保持 official", out: false)
+                self.syncTime(); self.startPolling()
+            } else {
+                self.frameVariant = .legacy
+                UserDefaults.standard.set("legacy", forKey: "frame.variant")
+                self.append("官方帧 3.5s 无应答 → 自动切 AAPS 帧重试", out: false)
+                self.write(.fullStatus, rw: .read)
+                let work2 = DispatchWorkItem { [weak self] in
+                    guard let self, case .ready = self.state else { return }
+                    let ok2 = (self.lastRxAt ?? .distantPast) > probeStart
+                    self.append(ok2 ? "✅ AAPS 帧有应答，已固定为 legacy" : "❌ 两种帧都无应答：先做系统配对，再试", out: false)
+                    self.startPolling()
+                }
+                self.probeWork = work2
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5, execute: work2)
+            }
+        }
+        probeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5, execute: work)
+    }
+
     func setAlert(_ text: String) {
         lastMessage = "⚠️ " + text
         append("⚠️ " + text, out: false)
@@ -265,6 +326,7 @@ final class PumpLink: NSObject, ObservableObject {
     // MARK: - 收帧
 
     private func ingest(_ data: [UInt8]) {
+        lastRxAt = Date()
         rxBuffer.append(contentsOf: data)
         while rxBuffer.count >= 3 {
             guard rxBuffer[0] == 0x55 else {
@@ -333,6 +395,14 @@ final class PumpLink: NSObject, ObservableObject {
         }
     }
 
+    /// 导出日志文本（供复制粘贴）
+    func exportLog(limit: Int = 100) -> String {
+        let batch = log.prefix(limit).reversed()
+        var head = "迈世通泵 v0.1 诊断日志\nserial=\(frameSerial) variant=\(frameVariant.rawValue) mtu=\(negotiatedMTU)\n"
+        head += batch.map { ($0.outbound ? "→ " : "← ") + $0.text }.joined(separator: "\n")
+        return head
+    }
+
     private func append(_ s: String, out: Bool) {
         log.insert(LogLine(text: s, outbound: out), at: 0)
         if log.count > 400 { log.removeLast(log.count - 400) }
@@ -390,6 +460,7 @@ extension PumpLink: CBCentralManagerDelegate {
     nonisolated func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         Task { @MainActor in
             self.pollTimer?.invalidate(); self.pollTimer = nil
+            self.probeWork?.cancel(); self.noReplyWork?.cancel()
             self.writeChar = nil; self.notifyChar = nil
             self.append("连接已断开 \(error?.localizedDescription ?? "")", out: false)
             self.state = .idle
@@ -431,11 +502,9 @@ extension PumpLink: CBPeripheralDelegate {
             guard self.writeChar != nil, self.notifyChar != nil, self.state != .ready else { return }
             self.pumpSerial = peripheral.name ?? ""
             self.state = .ready
-            self.append("就绪，泵 serial = \(self.pumpSerial)", out: false)
-            self.syncTime()
-            self.requestStatus()
-            self.fetchBasal()
-            self.startPolling()
+            self.negotiatedMTU = peripheral.maximumWriteValueLength(for: .withResponse)
+            self.append("就绪，泵 serial = \(self.pumpSerial)，写入上限 \(self.negotiatedMTU)B", out: false)
+            self.startProbe()
         }
     }
 
