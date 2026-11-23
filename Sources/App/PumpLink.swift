@@ -74,13 +74,11 @@ final class PumpLink: NSObject, ObservableObject {
     private var frameSerial: String {
         let o = serialOverride.trimmingCharacters(in: .whitespaces)
         if !o.isEmpty { return o }
-        let digits = PumpSerial.from(deviceName: pumpSerial)
-        // AAPS 驱动会把 "IP4-"/"IP2-" 前缀正则替换成 "01"，官方 App 只发纯数字
-        return "01" + digits
+        return PumpSerial.from(deviceName: pumpSerial)
     }
 
-    /// 只用 AAPS demose 这一套（官方帧相关逻辑全部移除）
-    let frameVariant: AppFrame.Variant = .legacy
+    /// 官方帧：无 0x01/msgId 尾，serial 用纯数字 + 0x00 补齐（实测官方 App 可通）
+    let frameVariant: AppFrame.Variant = .official
 
     /// 给 UI 用的错误详情（CBError 只给 localizedDescription 太笼统）
     nonisolated static func describe(_ error: Error) -> String {
@@ -106,6 +104,7 @@ final class PumpLink: NSObject, ObservableObject {
     private var writeChar: CBCharacteristic?
     private var notifyChar: CBCharacteristic?
     private var rxBuffer: [UInt8] = []
+    private var didLogWriteType = false
     private var nextMsgId: UInt16 = 1
     private var pollTimer: Timer?
     private var pendingHistory = false
@@ -210,7 +209,12 @@ final class PumpLink: NSObject, ObservableObject {
         if bytes.count > negotiatedMTU && negotiatedMTU > 0 {
             append("⚠️ 帧 \(bytes.count)B 超过协商上限 \(negotiatedMTU)B", out: false)
         }
-        p.writeValue(Data(bytes), for: ch, type: .withResponse)
+        let type: CBCharacteristicWriteType = ch.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+        p.writeValue(Data(bytes), for: ch, type: type)
+        if !didLogWriteType {
+            didLogWriteType = true
+            append("写入方式=\(type == .withoutResponse ? "无响应" : "带响应")（按特征属性自动选择）", out: false)
+        }
         if fireAndForget {
             lastMessage = "已发送（未确认）：请到泵屏幕核对"
         } else {
@@ -342,7 +346,12 @@ final class PumpLink: NSObject, ObservableObject {
         guard let p = peripheral, let ch = writeChar else { return false }
         guard let bytes = Bytes.fromHex(hex), !bytes.isEmpty else { return false }
         append("RAW → " + Bytes.hex(bytes, separator: " "), out: true)
-        p.writeValue(Data(bytes), for: ch, type: .withResponse)
+        let type: CBCharacteristicWriteType = ch.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+        p.writeValue(Data(bytes), for: ch, type: type)
+        if !didLogWriteType {
+            didLogWriteType = true
+            append("写入方式=\(type == .withoutResponse ? "无响应" : "带响应")（按特征属性自动选择）", out: false)
+        }
         return true
     }
 
@@ -477,7 +486,7 @@ final class PumpLink: NSObject, ObservableObject {
         let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
         var head = "迈世通泵 v\(ver) (build \(build))\n"
-        head += "serial=\(frameSerial) variant=legacy mtu=\(negotiatedMTU) 写入=带响应\n"
+        head += "serial=\(frameSerial) variant=\(frameVariant.rawValue) mtu=\(negotiatedMTU)\n"
         head += batch.map { ($0.outbound ? "→ " : "← ") + $0.text }.joined(separator: "\n")
         return head
     }
@@ -580,6 +589,8 @@ extension PumpLink: CBPeripheralDelegate {
                 }
             }
             guard self.writeChar != nil, self.notifyChar != nil, self.state != .ready else { return }
+            let props = self.writeChar?.properties ?? []
+            self.append("写特征属性：\(props.contains(.write) ? "write " : "")\(props.contains(.writeWithoutResponse) ? "noResp " : "")\(props.contains(.notify) ? "notify " : "")", out: false)
             self.pumpSerial = peripheral.name ?? ""
             self.append("特征就绪，等待通知开启…", out: false)
         }
