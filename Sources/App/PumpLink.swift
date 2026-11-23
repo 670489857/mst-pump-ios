@@ -105,6 +105,10 @@ final class PumpLink: NSObject, ObservableObject {
     private var notifyChar: CBCharacteristic?
     private var rxBuffer: [UInt8] = []
     private var didLogWriteType = false
+    /// 写入方式：默认带响应，能暴露加密/权限错误；泵只认 no-response 时可切
+    @Published var writeWithoutResponse: Bool = UserDefaults.standard.object(forKey: "write.noresp") as? Bool ?? false {
+        didSet { UserDefaults.standard.set(writeWithoutResponse, forKey: "write.noresp") }
+    }
     private var nextMsgId: UInt16 = 1
     private var pollTimer: Timer?
     private var pendingHistory = false
@@ -209,11 +213,12 @@ final class PumpLink: NSObject, ObservableObject {
         if bytes.count > negotiatedMTU && negotiatedMTU > 0 {
             append("⚠️ 帧 \(bytes.count)B 超过协商上限 \(negotiatedMTU)B", out: false)
         }
-        let type: CBCharacteristicWriteType = ch.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+        let useNoResp = writeWithoutResponse && ch.properties.contains(.writeWithoutResponse)
+        let type: CBCharacteristicWriteType = useNoResp ? .withoutResponse : .withResponse
         p.writeValue(Data(bytes), for: ch, type: type)
         if !didLogWriteType {
             didLogWriteType = true
-            append("写入方式=\(type == .withoutResponse ? "无响应" : "带响应")（按特征属性自动选择）", out: false)
+            append("写入方式=\(useNoResp ? "无响应" : "带响应")", out: false)
         }
         if fireAndForget {
             lastMessage = "已发送（未确认）：请到泵屏幕核对"
@@ -346,11 +351,12 @@ final class PumpLink: NSObject, ObservableObject {
         guard let p = peripheral, let ch = writeChar else { return false }
         guard let bytes = Bytes.fromHex(hex), !bytes.isEmpty else { return false }
         append("RAW → " + Bytes.hex(bytes, separator: " "), out: true)
-        let type: CBCharacteristicWriteType = ch.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+        let useNoResp = writeWithoutResponse && ch.properties.contains(.writeWithoutResponse)
+        let type: CBCharacteristicWriteType = useNoResp ? .withoutResponse : .withResponse
         p.writeValue(Data(bytes), for: ch, type: type)
         if !didLogWriteType {
             didLogWriteType = true
-            append("写入方式=\(type == .withoutResponse ? "无响应" : "带响应")（按特征属性自动选择）", out: false)
+            append("写入方式=\(useNoResp ? "无响应" : "带响应")", out: false)
         }
         return true
     }
