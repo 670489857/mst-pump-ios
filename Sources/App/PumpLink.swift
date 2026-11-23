@@ -723,17 +723,20 @@ extension PumpLink: CBPeripheralDelegate {
     nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         Task { @MainActor in
             // 完整 dump GATT 树，确认通知/写特征是否和我们假设一致
-            guard !self.didLogGatt else { return }
-            self.didLogGatt = true
-            for s in peripheral.services ?? [] {
-                for c in s.characteristics ?? [] {
-                    var p: [String] = []
-                    if c.properties.contains(.read) { p.append("read") }
-                    if c.properties.contains(.write) { p.append("write") }
-                    if c.properties.contains(.writeWithoutResponse) { p.append("noResp") }
-                    if c.properties.contains(.notify) { p.append("notify") }
-                    if c.properties.contains(.indicate) { p.append("indicate") }
-                    self.append("GATT \(s.uuid.uuidString.suffix(8)) / \(c.uuid.uuidString.suffix(8)) [\(p.joined(separator: ","))]", out: false)
+            // 注意：本回调按服务分别调用（FFE0、FFE5 各一次），这里只控制打印，
+            // 绝不能 return，否则第二个服务的特征永远赋不上（v3.1 的致命 bug）
+            if !self.didLogGatt {
+                self.didLogGatt = true
+                for s in peripheral.services ?? [] {
+                    for c in s.characteristics ?? [] {
+                        var p: [String] = []
+                        if c.properties.contains(.read) { p.append("read") }
+                        if c.properties.contains(.write) { p.append("write") }
+                        if c.properties.contains(.writeWithoutResponse) { p.append("noResp") }
+                        if c.properties.contains(.notify) { p.append("notify") }
+                        if c.properties.contains(.indicate) { p.append("indicate") }
+                        self.append("GATT \(s.uuid.uuidString.suffix(8)) / \(c.uuid.uuidString.suffix(8)) [\(p.joined(separator: ","))]", out: false)
+                    }
                 }
             }
             for c in service.characteristics ?? [] {
