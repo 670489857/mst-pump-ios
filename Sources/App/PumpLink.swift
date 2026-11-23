@@ -38,6 +38,16 @@ final class PumpLink: NSObject, ObservableObject {
     @Published private(set) var lastBolus: LastBolus?
     @Published private(set) var basalState: BasalState?
     @Published private(set) var delivered: Double?
+    /// 进行中的大剂量估算：已输注 / 总量（0.5U 一档，避免看起来比泵还准）
+    @Published private(set) var bolusProgrammed: Double = 0
+    @Published private(set) var bolusEstimated: Double = 0
+    @Published private(set) var bolusRunning: Bool = false
+    /// 泵的输注速度（U/秒），默认按常见管路泵 0.5U/6s 估算
+    @Published var bolusUnitsPerSecond: Double = UserDefaults.standard.object(forKey: "bolus.ups") as? Double ?? (0.5 / 6) {
+        didSet { UserDefaults.standard.set(bolusUnitsPerSecond, forKey: "bolus.ups") }
+    }
+    private var bolusStart: Date?
+    private var bolusTimer: Timer?
     @Published private(set) var alarmsRaw: String = ""
     @Published private(set) var primeRaw: String = ""
     @Published private(set) var lastRxAt: Date?
@@ -221,11 +231,45 @@ final class PumpLink: NSObject, ObservableObject {
     func deliverBolus(_ units: Double) {
         write(.bolus, rw: .write, payload: PumpCommand.bolus(units))
         append("打药 \(units) U", out: false)
+        startBolusTracking(units)
+    }
+
+    /// 按时间估算进度：0.5U 一档，取整到 0.5，避免显示虚假精度
+    private func startBolusTracking(_ units: Double) {
+        bolusTimer?.invalidate()
+        bolusProgrammed = units
+        bolusEstimated = 0
+        bolusRunning = true
+        bolusStart = Date()
+        bolusTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let start = self.bolusStart, self.bolusRunning else { return }
+                let raw = Date().timeIntervalSince(start) * self.bolusUnitsPerSecond
+                let stepped = min(self.bolusProgrammed, (raw / 0.5).rounded(.down) * 0.5)
+                self.bolusEstimated = stepped
+                if raw >= self.bolusProgrammed {
+                    self.finishBolusTracking(completed: true)
+                }
+            }
+        }
+    }
+
+    private func finishBolusTracking(completed: Bool) {
+        bolusTimer?.invalidate(); bolusTimer = nil
+        bolusRunning = false
+        bolusStart = nil
+        delivered = bolusEstimated
+        let msg = completed
+            ? String(format: "大剂量完成（按时间估算 ≈ %.1f U）", bolusEstimated)
+            : String(format: "已取消，估算已输注 ≈ %.1f U（以泵屏幕为准）", bolusEstimated)
+        lastMessage = msg
+        append(msg, out: false)
     }
 
     func cancelBolus() {
         write(.bolus, rw: .write, payload: PumpCommand.cancelBolus())
         append("取消大剂量", out: false)
+        if bolusRunning { finishBolusTracking(completed: false) }
     }
 
     func deliverExtendedBolus(units: Double, minutes: Int) {
