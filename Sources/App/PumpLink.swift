@@ -43,6 +43,8 @@ final class PumpLink: NSObject, ObservableObject {
     /// 进行中的大剂量估算：已输注 / 总量（0.5U 一档，避免看起来比泵还准）
     @Published private(set) var bolusProgrammed: Double = 0
     @Published private(set) var bolusEstimated: Double = 0
+    /// 泵回报的真实输注进度（优先于估算显示）
+    @Published private(set) var bolusProgress: Double?
     @Published private(set) var bolusRunning: Bool = false
     /// 泵的输注速度（U/秒），默认按常见管路泵 0.5U/6s 估算
     @Published var bolusUnitsPerSecond: Double = UserDefaults.standard.object(forKey: "bolus.ups") as? Double ?? (0.5 / 6) {
@@ -235,12 +237,31 @@ final class PumpLink: NSObject, ObservableObject {
 
     func requestStatus() { write(.fullStatus, rw: .read) }
 
+    /// 读大剂量记录：官方 cmd = {1, index}，index 0xAA 表示“最大索引”
+    func readBolusIndex(_ index: UInt8 = 0xAA) {
+        write(AppFrame.Cmd(rawValue: 0x0001 | (UInt16(index) << 8)), rw: .read)
+        append("读大剂量记录 idx=0x\(String(format: "%02X", index))", out: false)
+    }
+
+    /// 读基础率模板：cmd = {2, 0xAA} → 0xAA02
+    func readBasal() {
+        write(AppFrame.Cmd(rawValue: 0xAA02), rw: .read)
+        append("读基础率模板", out: false)
+    }
+
+    /// 读报警记录：cmd = {3, 0xAA} → 0xAA03
+    func readAlarms() {
+        write(AppFrame.Cmd(rawValue: 0xAA03), rw: .read)
+        append("读报警记录", out: false)
+    }
+
     func syncTime() {
         write(.timeSync, rw: .write, payload: PumpCommand.timeSync())
         append("已发送校时", out: true)
     }
 
     func deliverBolus(_ units: Double) {
+        bolusProgress = nil
         write(.bolus, rw: .write, payload: PumpCommand.bolus(units))
         append("打药 \(units) U", out: false)
         startBolusTracking(units)
@@ -282,6 +303,7 @@ final class PumpLink: NSObject, ObservableObject {
         write(.bolus, rw: .write, payload: PumpCommand.cancelBolus())
         append("取消大剂量", out: false)
         if bolusRunning { finishBolusTracking(completed: false) }
+        bolusProgress = nil
     }
 
     func deliverExtendedBolus(units: Double, minutes: Int) {
@@ -450,11 +472,28 @@ final class PumpLink: NSObject, ObservableObject {
                 lastMessage = "状态帧长度不足（\(r.payload.count)B）"
             }
         case 0xAAAA:
-            lastMessage = "泵已确认执行"
+            if r.payload.count >= 2 {
+                let raw = Int(r.payload[0]) | (Int(r.payload[1]) << 8)
+                let actual = Double(raw) / 10
+                delivered = actual
+                bolusEstimated = actual
+                bolusRunning = false
+                lastMessage = String(format: "泵回报：实际输注 %.1f U", actual)
+            } else {
+                lastMessage = "泵已确认执行"
+            }
         case 0xAA55:
             lastMessage = "泵已接受指令"
         case 0xAAA0:
-            lastMessage = "执行中…"
+            if r.payload.count >= 2 {
+                let raw = Int(r.payload[0]) | (Int(r.payload[1]) << 8)
+                let progress = Double(raw) / 10
+                bolusProgress = progress
+                bolusEstimated = progress
+                lastMessage = String(format: "执行中，泵回报已输注 %.1f U", progress)
+            } else {
+                lastMessage = "执行中…"
+            }
         case 0xAA5A:
             lastMessage = "泵拒绝：参数错误"
         case 0xAAA5:

@@ -125,6 +125,9 @@ struct PumpTab: View {
                 Text("等待状态…").foregroundStyle(.secondary)
             }
             Button("立即刷新") { link.requestStatus() }
+            Button("读大剂量记录") { link.readBolusIndex() }
+            Button("读基础率模板") { link.readBasal() }
+            Button("读报警记录") { link.readAlarms() }
         }
     }
 
@@ -169,14 +172,21 @@ struct BolusTab: View {
                         .buttonStyle(.borderedProminent)
                     }
                     Button("立即取消正在输注的大剂量", role: .destructive) { link.cancelBolus() }
-                    if link.bolusRunning {
-                        ProgressView(value: link.bolusProgrammed > 0 ? link.bolusEstimated / link.bolusProgrammed : 0)
-                        Text(String(format: "估算已输注 %.1f / %.1f U（0.5U 一档，按时间推算）",
-                                    link.bolusEstimated, link.bolusProgrammed))
-                            .font(.footnote).foregroundStyle(.secondary)
+                    if link.bolusRunning || link.bolusProgress != nil {
+                        ProgressView(value: link.bolusProgrammed > 0
+                                     ? min(1, (link.bolusProgress ?? link.bolusEstimated) / link.bolusProgrammed)
+                                     : 0)
+                        if let p = link.bolusProgress {
+                            Text(String(format: "泵回报已输注 %.1f / %.1f U", p, link.bolusProgrammed))
+                                .font(.footnote).foregroundStyle(.secondary)
+                        } else {
+                            Text(String(format: "估算 %.1f / %.1f U（泵未回报进度，按时间推算）",
+                                        link.bolusEstimated, link.bolusProgrammed))
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
                     }
                     if let d = link.delivered {
-                        Text(String(format: "最近一次估算输注：%.1f U（以泵屏幕为准）", d))
+                        Text(String(format: "泵回报实际输注：%.1f U", d))
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
