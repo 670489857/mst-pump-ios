@@ -149,14 +149,21 @@ public struct AppFrame {
 /// 设备名 `IP4.1234567` / `IP4-1234567` → 取分隔符之后那一段，再补到 12 字节
 public enum PumpSerial {
     public static func from(deviceName: String) -> String {
-        let trimmed = deviceName.trimmingCharacters(in: .whitespaces)
+        // 设备名里可能带 \r\n（BLE 广播名常见），必须先去干净
+        let trimmed = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw: String
         if trimmed.hasPrefix("IP4.") || trimmed.hasPrefix("IP2.") {
             let parts = trimmed.split(separator: ".")
-            if parts.count >= 2 { return String(parts[1]) }
+            raw = parts.count >= 2 ? String(parts[1]) : trimmed
         } else {
             let parts = trimmed.split(separator: "-")
-            if parts.count >= 2 { return String(parts[1]) }
+            raw = parts.count >= 2 ? String(parts[1]) : trimmed
         }
-        return trimmed
+        // 只保留字母数字，杜绝 CR/LF/空格混进 12 字节
+        let cleaned = raw.unicodeScalars.filter {
+            CharacterSet.alphanumerics.contains($0)
+        }
+        let result = String(String.UnicodeScalarView(cleaned))
+        return String(result.prefix(12))
     }
 }

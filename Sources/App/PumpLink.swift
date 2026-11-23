@@ -205,7 +205,7 @@ final class PumpLink: NSObject, ObservableObject {
         let frame = AppFrame(rw: rw, cmd: cmd, serial: frameSerial,
                              payload: payload, msgId: msgId, variant: frameVariant)
         let bytes = frame.encode()
-        append("[AAPS]" + Bytes.hex(bytes, separator: " "), out: true)
+        append("[官]" + Bytes.hex(bytes, separator: " "), out: true)
         if bytes.count > negotiatedMTU && negotiatedMTU > 0 {
             append("⚠️ 帧 \(bytes.count)B 超过协商上限 \(negotiatedMTU)B", out: false)
         }
