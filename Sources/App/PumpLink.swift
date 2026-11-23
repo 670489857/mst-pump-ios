@@ -103,6 +103,10 @@ final class PumpLink: NSObject, ObservableObject {
     private var pendingRead: PendingRead?
     private var pendingReadCmd: UInt16 = 0
     /// 连接后先用官方帧试一发，3.5 秒无应答自动改发 AAPS 帧
+    /// 写入方式：带响应（默认）/ 不带响应。泵若只认其中一种，切换后能立刻看出差别
+    @Published var writeWithoutResponse: Bool = UserDefaults.standard.bool(forKey: "write.noresp") {
+        didSet { UserDefaults.standard.set(writeWithoutResponse, forKey: "write.noresp") }
+    }
     @Published var autoProbe: Bool = UserDefaults.standard.object(forKey: "auto.probe") as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoProbe, forKey: "auto.probe") }
     }
@@ -201,7 +205,7 @@ final class PumpLink: NSObject, ObservableObject {
         if bytes.count > negotiatedMTU && negotiatedMTU > 0 {
             append("⚠️ 帧 \(bytes.count)B 超过协商上限 \(negotiatedMTU)B", out: false)
         }
-        p.writeValue(Data(bytes), for: ch, type: .withResponse)
+        p.writeValue(Data(bytes), for: ch, type: writeWithoutResponse ? .withoutResponse : .withResponse)
         armNoReplyGuard()
         return msgId
     }
@@ -314,6 +318,13 @@ final class PumpLink: NSObject, ObservableObject {
         append("RAW → " + Bytes.hex(bytes, separator: " "), out: true)
         p.writeValue(Data(bytes), for: ch, type: .withResponse)
         return true
+    }
+
+    /// 读 FFE9（写特征）——iOS 在访问要求加密的特征时才弹系统配对框
+    func readWriteChar() {
+        guard let p = peripheral, let ch = writeChar else { setAlert("未连接"); return }
+        append("请求读 FFE9（若泵要求加密，这里会弹系统配对框）", out: false)
+        p.readValue(for: ch)
     }
 
     /// 读一帧原始特征值（触发读，常用于强制 iOS 发起配对）

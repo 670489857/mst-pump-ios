@@ -420,7 +420,11 @@ struct LogTab: View {
                             .onSubmit { link.serialOverride = serialDraft }
                     }
                     Button("应用 serial") { link.serialOverride = serialDraft }
+                    Toggle("写入不带响应（写不通时可切换试）", isOn: Binding(
+                        get: { link.writeWithoutResponse },
+                        set: { link.writeWithoutResponse = $0 }))
                     Button("读一次 FFE4（试探是否需要配对）") { link.readNotifyChar() }
+                    Button("读一次 FFE9（触发系统配对弹窗）") { link.readWriteChar() }
                     Text("写入报 insufficient authentication 时，先去 iOS 设置→蓝牙 里配对泵，再回来重连。")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
