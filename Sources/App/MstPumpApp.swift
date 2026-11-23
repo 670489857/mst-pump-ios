@@ -39,6 +39,16 @@ struct PumpTab: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    HStack {
+                        Spacer()
+                        MedNovoDeviceView(link: link)
+                            .padding(.vertical, 6)
+                        Spacer()
+                    }
+                }
+                .listRowBackground(Color.clear)
+
                 linkSection
                 if case .ready = link.state { statusSection }
                 Section("整机控制") {
