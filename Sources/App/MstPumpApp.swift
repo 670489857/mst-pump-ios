@@ -107,7 +107,6 @@ struct PumpTab: View {
                 row("今日总量", String(format: "%.1f U", s.dayTotaled))
                 row("基础分段", "\(s.baseSegs) 段")
                 row("基础率模式", s.tbaseMode == 0 ? "普通" : "分段")
-                row("当前基础率", link.basalState.map { String(format: "%.2f U/h", $0.activeRate) } ?? "—")
                 row("单次上限", "\(s.maxBolus / 10) U")
                 row("日上限", "\(s.maxDaily / 10) U")
                 row("错误标志", s.errflag == 0 ? "无" : "0x\(String(format: "%02X", s.errflag))")
@@ -239,21 +238,6 @@ struct BasalTab: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("泵内当前模板") {
-                    if let b = link.basalState {
-                        Text("读取时间 \(b.time.text)").font(.caption).foregroundStyle(.secondary)
-                        Text(String(format: "加权当前基础率 %.2f U/h", b.activeRate))
-                        Text(String(format: "模板日总量 %.2f U", b.profile.totalDaily))
-                            .font(.footnote).foregroundStyle(.secondary)
-                        NavigationLink("查看 48 段明细") {
-                            BasalDetailList(profile: b.profile)
-                        }
-                    } else {
-                        Text("尚未读取").foregroundStyle(.secondary)
-                    }
-                    Button("从泵读取") { link.fetchBasal() }
-                }
-
                 Section("写入新模板") {
                     HStack {
                         TextField("统一基础率 U/h（例 1.2）", text: $uniformRate)

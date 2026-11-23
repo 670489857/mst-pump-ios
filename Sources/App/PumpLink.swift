@@ -550,7 +550,6 @@ extension PumpLink: CBPeripheralDelegate {
                 try? await Task.sleep(nanoseconds: 300_000_000)
                 self?.syncTime()
                 self?.requestStatus()
-                self?.fetchBasal()
                 self?.startPolling()
             }
         }
