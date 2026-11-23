@@ -22,7 +22,7 @@ public struct ReplyFrame {
         guard len == bytes.count, len >= 8 else { return nil }
         let rw = bytes[3]
         let cmd = UInt16(bytes[4]) | (UInt16(bytes[5]) << 8)
-        let payload = len > 8 ? Array(bytes[6..<(len - 2)) : []
+        let payload = len > 8 ? Array(bytes[6..<(len - 2)]) : []
         let crc = UInt16(bytes[len - 2]) | (UInt16(bytes[len - 1]) << 8)
         let ok = CRC16.modbus(Array(bytes[0..<(len - 2)])) == crc
         return ReplyFrame(rw: rw, rawCmd: cmd, payload: payload, crcOK: ok)
