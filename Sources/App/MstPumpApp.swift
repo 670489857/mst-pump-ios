@@ -189,21 +189,20 @@ struct BolusTab: View {
                         .buttonStyle(.borderedProminent)
                     }
                     Button("立即取消正在输注的大剂量", role: .destructive) { link.cancelBolus() }
-                    if link.bolusRunning || link.bolusProgress != nil {
+                    if link.bolusRunning {
                         ProgressView(value: link.bolusProgrammed > 0
                                      ? min(1, (link.bolusProgress ?? link.bolusEstimated) / link.bolusProgrammed)
                                      : 0)
                         if let p = link.bolusProgress {
-                            Text(String(format: "泵回报已输注 %.1f / %.1f U", p, link.bolusProgrammed))
+                            Text(String(format: "泵回报已输注 %.1f / %.1f U（输注中）", p, link.bolusProgrammed))
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else {
-                            Text(String(format: "估算 %.1f / %.1f U（泵未回报进度，按时间推算）",
-                                        link.bolusEstimated, link.bolusProgrammed))
+                            Text(String(format: "等待泵回报…（计划 %.1f U）", link.bolusProgrammed))
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                     }
-                    if let d = link.delivered {
-                        Text(String(format: "泵回报实际输注：%.1f U", d))
+                    if let d = link.delivered, !link.bolusRunning {
+                        Text(String(format: "上次结果：泵回报实输 %.1f U", d))
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }

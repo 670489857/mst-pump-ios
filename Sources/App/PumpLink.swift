@@ -112,6 +112,7 @@ final class PumpLink: NSObject, ObservableObject {
     private var rxBuffer: [UInt8] = []
     private var rxPackets = 0
     private var didLogWriteType = false
+    private var didLogGatt = false
     /// 写入方式：默认带响应，能暴露加密/权限错误；泵只认 no-response 时可切
     @Published var writeWithoutResponse: Bool = UserDefaults.standard.object(forKey: "write.noresp.v2") as? Bool ?? false {
         didSet { UserDefaults.standard.set(writeWithoutResponse, forKey: "write.noresp.v2") }
@@ -291,23 +292,21 @@ final class PumpLink: NSObject, ObservableObject {
         }
     }
 
+    /// 只停掉本地计时，实际输注量以泵的 0xAAAA 回执为准，绝不用估算冒充
     private func finishBolusTracking(completed: Bool) {
         bolusTimer?.invalidate(); bolusTimer = nil
         bolusRunning = false
         bolusStart = nil
-        delivered = bolusEstimated
-        let msg = completed
-            ? String(format: "大剂量完成（按时间估算 ≈ %.1f U）", bolusEstimated)
-            : String(format: "已取消，估算已输注 ≈ %.1f U（以泵屏幕为准）", bolusEstimated)
-        lastMessage = msg
-        append(msg, out: false)
+        if completed {
+            lastMessage = "已到计划时间，等待泵回报实际输注量…"
+        }
     }
 
     func cancelBolus() {
         write(.bolus, rw: .write, payload: PumpCommand.cancelBolus())
-        append("取消大剂量", out: false)
-        if bolusRunning { finishBolusTracking(completed: false) }
-        bolusProgress = nil
+        append("已发送取消请求，等待泵回报实输量", out: false)
+        lastMessage = "已发送取消，等待泵确认…"
+        // 泵会回 0xAAA5（中止）或直接 0xAAAA（带实输量），这里不臆造数字
     }
 
     func deliverExtendedBolus(units: Double, minutes: Int) {
@@ -421,7 +420,6 @@ final class PumpLink: NSObject, ObservableObject {
 
     func setAlert(_ text: String) {
         lastMessage = "⚠️ " + text
-        append("⚠️ " + text, out: false)
     }
 
     // MARK: - 收帧
@@ -493,15 +491,29 @@ final class PumpLink: NSObject, ObservableObject {
             if r.payload.count >= 2 {
                 let raw = Int(r.payload[0]) | (Int(r.payload[1]) << 8)
                 let actual = Double(raw) / 10
+                let planned = bolusProgrammed
                 delivered = actual
                 bolusEstimated = actual
+                bolusProgress = nil
                 bolusRunning = false
-                lastMessage = String(format: "泵回报：实际输注 %.1f U", actual)
+                bolusTimer?.invalidate(); bolusTimer = nil
+                bolusStart = nil
+                if planned > actual + 0.05 {
+                    lastMessage = String(format: "大剂量已中止：泵回报实输 %.1f U／计划 %.1f U", actual, planned)
+                } else {
+                    lastMessage = String(format: "泵回报：实际输注 %.1f U", actual)
+                }
             } else {
                 lastMessage = "泵已确认执行"
             }
         case 0xAA55:
-            lastMessage = "泵已接受指令"
+            if r.payload.count >= 2 {
+                let raw = Int(r.payload[0]) | (Int(r.payload[1]) << 8)
+                let units = Double(raw) / 10
+                lastMessage = String(format: "泵已接受指令（%.1f U）", units)
+            } else {
+                lastMessage = "泵已接受指令"
+            }
         case 0xAAA0:
             if r.payload.count >= 2 {
                 let raw = Int(r.payload[0]) | (Int(r.payload[1]) << 8)
@@ -515,7 +527,15 @@ final class PumpLink: NSObject, ObservableObject {
         case 0xAA5A:
             lastMessage = "泵拒绝：参数错误"
         case 0xAAA5:
-            lastMessage = "泵拒绝：当前状态不允许"
+            bolusTimer?.invalidate(); bolusTimer = nil
+            bolusRunning = false
+            lastMessage = "泵中止执行（例如在泵上手动停止）"
+            // 有些情况下泵不再补发 0xAAAA，3 秒后如实说明没拿到实输量
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard let self, self.delivered == nil else { return }
+                self.lastMessage = "泵已中止，但未回报实输量，请以泵屏幕为准"
+            }
         case 0x0001:
             if let b = LastBolus.decode(r.payload) {
                 lastBolus = b
@@ -655,6 +675,7 @@ extension PumpLink: CBCentralManagerDelegate {
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor in
             self.rxPackets = 0
+            self.didLogGatt = false
             self.rxBuffer.removeAll()
             self.append("已连接，发现服务…", out: false)
             peripheral.discoverServices(PumpLink.serviceRead)
@@ -702,6 +723,8 @@ extension PumpLink: CBPeripheralDelegate {
     nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         Task { @MainActor in
             // 完整 dump GATT 树，确认通知/写特征是否和我们假设一致
+            guard !self.didLogGatt else { return }
+            self.didLogGatt = true
             for s in peripheral.services ?? [] {
                 for c in s.characteristics ?? [] {
                     var p: [String] = []
