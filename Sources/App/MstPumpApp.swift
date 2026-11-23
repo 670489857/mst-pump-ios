@@ -23,9 +23,6 @@ struct ContentView: View {
             BasalTab(link: link)
                 .tabItem { Label("基础率", systemImage: "chart.bar") }
 
-            RecordsTab(link: link)
-                .tabItem { Label("记录", systemImage: "list.bullet.rectangle") }
-
             LogTab(link: link)
                 .tabItem { Label("日志", systemImage: "terminal") }
         }
@@ -306,78 +303,6 @@ struct BasalDetailList: View {
     }
 }
 
-// MARK: - 记录
-
-struct RecordsTab: View {
-    @ObservedObject var link: PumpLink
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("链路") {
-                    HStack {
-                        Text(link.state.isReady ? "已连接" : "未连接")
-                            .font(.caption).foregroundStyle(link.state.isReady ? .green : .secondary)
-                        Spacer()
-                        Text(link.lastMessage.isEmpty ? "—" : link.lastMessage)
-                            .font(.caption2).foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                    if !link.lastReplyHex.isEmpty {
-                        Text("最近回帧 0x\(String(format: "%04X", link.lastReplyCmd))：\(link.lastReplyHex)")
-                            .font(.system(.caption2, design: .monospaced))
-                            .lineLimit(3)
-                    }
-                    if !link.state.isReady {
-                        Text("先到「泵」页扫描并连接，按钮才会有响应。")
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
-                }
-                Section("大剂量历史") {
-                    Button("读取历史记录") { link.fetchHistory() }
-                        .disabled(!link.state.isReady)
-                    ForEach(link.history) { r in
-                        HStack {
-                            Text(r.time.text).font(.system(.caption, design: .monospaced))
-                            Spacer()
-                            Text(String(format: "%.1f U", r.bolus))
-                        }
-                    }
-                    if link.history.isEmpty {
-                        Text("暂无记录").foregroundStyle(.secondary)
-                    }
-                }
-                Section("最近一次大剂量") {
-                    Button("读取") { link.fetchLastBolus() }
-                        .disabled(!link.state.isReady)
-                    if let b = link.lastBolus {
-                        HStack {
-                            Text(b.time.text).font(.system(.caption, design: .monospaced))
-                            Spacer()
-                            Text(String(format: "%.1f U", b.bolus))
-                        }
-                    }
-                }
-                Section("报警") {
-                    Button("读取报警数据") { link.fetchAlarms() }
-                        .disabled(!link.state.isReady)
-                    if !link.alarmsRaw.isEmpty {
-                        Text(link.alarmsRaw).font(.system(.caption2, design: .monospaced))
-                    }
-                }
-                Section("排气 / 填充") {
-                    Button("读取排气数据") { link.fetchPrime() }
-                        .disabled(!link.state.isReady)
-                    if !link.primeRaw.isEmpty {
-                        Text(link.primeRaw).font(.system(.caption2, design: .monospaced))
-                    }
-                }
-            }
-            .navigationTitle("记录")
-        }
-    }
-}
-
 // MARK: - 日志
 
 struct LogTab: View {
@@ -412,6 +337,10 @@ struct LogTab: View {
                     }
                 }
                 Section("链路诊断") {
+                    if !link.lastReplyHex.isEmpty {
+                        Text("最近回帧 0x\(String(format: "%04X", link.lastReplyCmd))：\(link.lastReplyHex)")
+                            .font(.system(.caption2, design: .monospaced)).lineLimit(3)
+                    }
                     HStack {
                         Text("serial").font(.caption).foregroundStyle(.secondary)
                         TextField("留空=用蓝牙名（12 字节内）", text: $serialDraft)
