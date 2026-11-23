@@ -54,19 +54,18 @@ final class PumpLink: NSObject, ObservableObject {
         didSet { UserDefaults.standard.set(serialOverride, forKey: "serial.override") }
     }
 
+    var frameSerialForDisplay: String { frameSerial }
+
     private var frameSerial: String {
         let o = serialOverride.trimmingCharacters(in: .whitespaces)
         if !o.isEmpty { return o }
         let digits = PumpSerial.from(deviceName: pumpSerial)
         // AAPS 驱动会把 "IP4-"/"IP2-" 前缀正则替换成 "01"，官方 App 只发纯数字
-        return frameVariant == .legacy ? "01" + digits : digits
+        return "01" + digits
     }
 
-    /// 帧结构：官方格式（默认）/ AAPS 格式
-    @Published var frameVariant: AppFrame.Variant =
-        AppFrame.Variant(rawValue: UserDefaults.standard.string(forKey: "frame.variant") ?? "") ?? .official {
-        didSet { UserDefaults.standard.set(frameVariant.rawValue, forKey: "frame.variant") }
-    }
+    /// 只用 AAPS demose 这一套（官方帧相关逻辑全部移除）
+    let frameVariant: AppFrame.Variant = .legacy
 
     /// 给 UI 用的错误详情（CBError 只给 localizedDescription 太笼统）
     nonisolated static func describe(_ error: Error) -> String {
@@ -102,14 +101,6 @@ final class PumpLink: NSObject, ObservableObject {
     private enum PendingRead: Equatable { case lastBolus, alarms, prime }
     private var pendingRead: PendingRead?
     private var pendingReadCmd: UInt16 = 0
-    /// 连接后先用官方帧试一发，3.5 秒无应答自动改发 AAPS 帧
-    /// 写入方式：带响应（默认）/ 不带响应。泵若只认其中一种，切换后能立刻看出差别
-    @Published var writeWithoutResponse: Bool = UserDefaults.standard.object(forKey: "write.noresp") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(writeWithoutResponse, forKey: "write.noresp") }
-    }
-    @Published var autoProbe: Bool = UserDefaults.standard.object(forKey: "auto.probe") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(autoProbe, forKey: "auto.probe") }
-    }
 
     private static let serviceRead: [CBUUID] = [CBUUID(string: "0000FFE0-0000-1000-8000-00805F9B34FB"),
                                                 CBUUID(string: "0000FFE5-0000-1000-8000-00805F9B34FB")]
@@ -200,12 +191,11 @@ final class PumpLink: NSObject, ObservableObject {
         let frame = AppFrame(rw: rw, cmd: cmd, serial: frameSerial,
                              payload: payload, msgId: msgId, variant: frameVariant)
         let bytes = frame.encode()
-        let tag = frameVariant == .official ? "[官]" : "[AAPS]"
-        append(tag + Bytes.hex(bytes, separator: " "), out: true)
+        append("[AAPS]" + Bytes.hex(bytes, separator: " "), out: true)
         if bytes.count > negotiatedMTU && negotiatedMTU > 0 {
             append("⚠️ 帧 \(bytes.count)B 超过协商上限 \(negotiatedMTU)B", out: false)
         }
-        p.writeValue(Data(bytes), for: ch, type: writeWithoutResponse ? .withoutResponse : .withResponse)
+        p.writeValue(Data(bytes), for: ch, type: .withResponse)
         armNoReplyGuard()
         return msgId
     }
@@ -269,46 +259,29 @@ final class PumpLink: NSObject, ObservableObject {
         history.removeAll()
         pendingRead = nil
         pendingHistory = true
-        write(.history, rw: .read, payload: frameVariant == .official ? [0xAA] : [])
+        write(.history, rw: .read)
         append("读取历史记录…", out: false)
     }
 
     func fetchLastBolus() {
-        readWithFallback(AppFrame.Cmd(rawValue: 0xAA01), alt: .lastBolus, kind: .lastBolus)
+        guard case .ready = state else { setAlert("未连接，先连接泵"); return }
+        pendingRead = .lastBolus; pendingReadCmd = AppFrame.Cmd.lastBolus.rawValue
+        write(.lastBolus, rw: .read)
     }
     func fetchBasal() { write(.lastBaseRate, rw: .read) }
 
     func fetchAlarms() {
         alarmsRaw = ""
-        readWithFallback(AppFrame.Cmd(rawValue: 0xAA03), alt: .alarms, kind: .alarms)
+        guard case .ready = state else { setAlert("未连接，先连接泵"); return }
+        pendingRead = .alarms; pendingReadCmd = AppFrame.Cmd.alarms.rawValue
+        write(.alarms, rw: .read)
     }
 
     func fetchPrime() {
         primeRaw = ""
-        readWithFallback(AppFrame.Cmd(rawValue: 0xAA04), alt: .prime, kind: .prime)
-    }
-
-    /// 先发官方「最大索引」读取码，3 秒无回帧自动改发 AAPS 读取码；再无回应给出提示
-    private func readWithFallback(_ primary: AppFrame.Cmd, alt: AppFrame.Cmd, kind: PendingRead) {
         guard case .ready = state else { setAlert("未连接，先连接泵"); return }
-        pendingRead = kind
-        pendingReadCmd = primary.rawValue
-        let start = Date()
-        write(primary, rw: .read)
-
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard let self, self.pendingRead == kind else { return }
-            guard (self.lastRxAt ?? .distantPast) < start else { return }
-            self.append("无应答，改发备用读取码 0x\(String(format: "%04X", alt.rawValue))", out: false)
-            self.pendingReadCmd = alt.rawValue
-            self.write(alt, rw: .read)
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard self.pendingRead == kind else { return }
-            guard (self.lastRxAt ?? .distantPast) < start else { return }
-            self.pendingRead = nil
-            self.setAlert("两个读取码都无回帧：泵可能要求系统配对，或该记录为空")
-        }
+        pendingRead = .prime; pendingReadCmd = AppFrame.Cmd.prime.rawValue
+        write(.prime, rw: .read)
     }
 
     /// 直接把一串 HEX 写到 FFE9（调试用，不带任何封装）
@@ -348,54 +321,6 @@ final class PumpLink: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: work)
     }
 
-    /// 连接后协议探测：官方帧试一发 → 3.5s 无应答自动切 AAPS 帧再试
-    private func startProbe() {
-        guard autoProbe else {
-            syncTime(); requestStatus(); startPolling(); return
-        }
-        frameVariant = .official
-        UserDefaults.standard.set("official", forKey: "frame.variant")
-        let probeStart = Date()
-        append("协议探测：先发官方帧读状态…", out: false)
-        write(.fullStatus, rw: .read)
-        probeWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self, case .ready = self.state else { return }
-            let answered = (self.lastValidFrameAt ?? .distantPast) > probeStart
-            if answered {
-                self.frameVariant = .official
-                UserDefaults.standard.set("official", forKey: "frame.variant")
-                self.append("✅ 官方帧有应答，已固定为 official", out: false)
-                self.syncTime(); self.startPolling()
-            } else {
-                self.frameVariant = .legacy
-                UserDefaults.standard.set("legacy", forKey: "frame.variant")
-                self.append("官方帧 3.5s 无应答 → 自动切 AAPS 帧重试", out: false)
-                self.write(.fullStatus, rw: .read)
-                let work2 = DispatchWorkItem { [weak self] in
-                    guard let self, case .ready = self.state else { return }
-                    let ok2 = (self.lastValidFrameAt ?? .distantPast) > probeStart
-                    self.append(ok2 ? "✅ AAPS 帧有应答，已固定为 legacy" : "❌ 两种帧都无应答：先做系统配对，再试", out: false)
-                    self.startPolling()
-                }
-                self.probeWork = work2
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5, execute: work2)
-            }
-        }
-        probeWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5, execute: work)
-    }
-
-    /// 一键恢复官方默认：官方帧 + 不带响应写 + 自动探测 + 清空 serial 覆盖
-    func resetToOfficialDefaults() {
-        frameVariant = .official
-        UserDefaults.standard.set("official", forKey: "frame.variant")
-        writeWithoutResponse = true
-        autoProbe = true
-        serialOverride = ""
-        UserDefaults.standard.removeObject(forKey: "serial.override")
-        append("已恢复默认：official / 无响应写 / 自动探测 / serial 用蓝牙名", out: false)
-    }
 
     func setAlert(_ text: String) {
         lastMessage = "⚠️ " + text
@@ -472,7 +397,7 @@ final class PumpLink: NSObject, ObservableObject {
         case .history:
             let recs = HistoryRecord.decodeAll(frame.payload)
             history.append(contentsOf: recs)
-            if pendingHistory { write(.history, rw: .read, payload: frameVariant == .official ? [0xAA] : []) }
+            if pendingHistory { write(.history, rw: .read) }
         case .historyDone:
             pendingHistory = false
             lastMessage = "历史记录读取完毕（\(history.count) 条）"
@@ -499,7 +424,7 @@ final class PumpLink: NSObject, ObservableObject {
         let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
         var head = "迈世通泵 v\(ver) (build \(build))\n"
-        head += "serial=\(frameSerial) variant=\(frameVariant.rawValue) 写入=\(writeWithoutResponse ? "无响应" : "带响应") autoProbe=\(autoProbe) mtu=\(negotiatedMTU)\n"
+        head += "serial=\(frameSerial) variant=legacy mtu=\(negotiatedMTU) 写入=带响应\n"
         head += batch.map { ($0.outbound ? "→ " : "← ") + $0.text }.joined(separator: "\n")
         return head
     }
@@ -618,12 +543,15 @@ extension PumpLink: CBPeripheralDelegate {
                 return
             }
             self.state = .ready
-            let mtu = self.peripheral?.maximumWriteValueLength(for: self.writeWithoutResponse ? .withoutResponse : .withResponse) ?? 0
+            let mtu = self.peripheral?.maximumWriteValueLength(for: .withResponse) ?? 0
             self.negotiatedMTU = mtu
-            self.append("就绪，serial = \(self.pumpSerial)，上限 \(mtu)B，写入=\(self.writeWithoutResponse ? "无响应" : "带响应")", out: false)
+            self.append("就绪，serial = \(self.pumpSerial)，上限 \(mtu)B", out: false)
             Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: 300_000_000)
-                self?.startProbe()
+                self?.syncTime()
+                self?.requestStatus()
+                self?.fetchBasal()
+                self?.startPolling()
             }
         }
     }

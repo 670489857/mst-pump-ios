@@ -317,34 +317,10 @@ struct LogTab: View {
                 Section("当前生效参数") {
                     let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
                     let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-                    Text("版本 v\(ver) (build \(build))")
+                    Text("版本 v\(ver) (build \(build)) · 协议 AAPS demose")
                         .font(.caption2)
-                    Text("协议 \(link.frameVariant.title) · 写入 \(link.writeWithoutResponse ? "无响应" : "带响应") · 探测 \(link.autoProbe ? "开" : "关")")
-                        .font(.caption2).foregroundStyle(.secondary)
-                    Button("恢复官方默认（帧/写入/探测/serial）") { link.resetToOfficialDefaults() }
-                        .font(.footnote)
-                }
-                Section("帧格式") {
-                    Picker("协议", selection: Binding(
-                        get: { link.frameVariant },
-                        set: { link.frameVariant = $0 })) {
-                        ForEach(AppFrame.Variant.allCases) { v in
-                            Text(v.title).tag(v)
-                        }
-                    }
-                    Text("官方格式：无 msgId 尾、serial 取名字分隔符后的段；AAPS 格式：多 3 字节。连不上或命令没反应就先切换这里。")
-                        .font(.caption2).foregroundStyle(.secondary)
-                    Toggle("连接后自动探测协议", isOn: Binding(
-                        get: { link.autoProbe },
-                        set: { link.autoProbe = $0 }))
-                    Text("开启时：先用官方帧读状态，3.5 秒没回帧就自动改发 AAPS 帧；哪套有应答就固定用哪套。")
-                        .font(.caption2).foregroundStyle(.secondary)
-                    Text("当前发送 serial：\(link.frameVariant == .legacy ? "01" + PumpSerial.from(deviceName: link.pumpSerial) : PumpSerial.from(deviceName: link.pumpSerial))")
+                    Text("发送 serial：\(link.frameSerialForDisplay)")
                         .font(.system(.caption2, design: .monospaced))
-                    if let rx = link.lastRxAt {
-                        Text("最后一次收到回帧：\(rx.formatted(date: .omitted, time: .standard)) · MTU \(link.negotiatedMTU)B")
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
                 }
                 Section("链路诊断") {
                     if !link.lastReplyHex.isEmpty {
@@ -359,9 +335,6 @@ struct LogTab: View {
                             .onSubmit { link.serialOverride = serialDraft }
                     }
                     Button("应用 serial") { link.serialOverride = serialDraft }
-                    Toggle("写入不带响应（写不通时可切换试）", isOn: Binding(
-                        get: { link.writeWithoutResponse },
-                        set: { link.writeWithoutResponse = $0 }))
                     Button("读一次 FFE4（试探是否需要配对）") { link.readNotifyChar() }
                     Button("读一次 FFE9（触发系统配对弹窗）") { link.readWriteChar() }
                     Text("写入报 insufficient authentication 时，先去 iOS 设置→蓝牙 里配对泵，再回来重连。")
