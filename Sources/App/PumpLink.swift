@@ -104,6 +104,7 @@ final class PumpLink: NSObject, ObservableObject {
     private var writeChar: CBCharacteristic?
     private var notifyChar: CBCharacteristic?
     private var rxBuffer: [UInt8] = []
+    private var rxPackets = 0
     private var didLogWriteType = false
     /// 写入方式：默认带响应，能暴露加密/权限错误；泵只认 no-response 时可切
     @Published var writeWithoutResponse: Bool = UserDefaults.standard.object(forKey: "write.noresp.v2") as? Bool ?? false {
@@ -407,7 +408,12 @@ final class PumpLink: NSObject, ObservableObject {
                 continue
             }
             let len = Int(rxBuffer[1]) | (Int(rxBuffer[2]) << 8)
-            guard len >= 23, len <= 512 else { rxBuffer.removeAll(); continue }
+            // 官方解析器接受 8–256，短应答（如 0xAA55）只有 20 字节，不能按 AAPS 的 23 卡掉
+            let minLen = (frameVariant == .official) ? 20 : 23
+            guard len >= minLen, len <= 512 else {
+                append("⚠️ 丢弃可疑帧 len=\(len) buf=\(rxBuffer.count)B", out: false)
+                rxBuffer.removeAll(); continue
+            }
             guard rxBuffer.count >= len else { return }
             let frameBytes = Array(rxBuffer[0..<len])
             rxBuffer.removeFirst(len)
@@ -541,6 +547,8 @@ extension PumpLink: CBCentralManagerDelegate {
 
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor in
+            self.rxPackets = 0
+            self.rxBuffer.removeAll()
             self.append("已连接，发现服务…", out: false)
             peripheral.discoverServices(PumpLink.serviceRead)
         }
@@ -586,6 +594,18 @@ extension PumpLink: CBPeripheralDelegate {
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         Task { @MainActor in
+            // 完整 dump GATT 树，确认通知/写特征是否和我们假设一致
+            for s in peripheral.services ?? [] {
+                for c in s.characteristics ?? [] {
+                    var p: [String] = []
+                    if c.properties.contains(.read) { p.append("read") }
+                    if c.properties.contains(.write) { p.append("write") }
+                    if c.properties.contains(.writeWithoutResponse) { p.append("noResp") }
+                    if c.properties.contains(.notify) { p.append("notify") }
+                    if c.properties.contains(.indicate) { p.append("indicate") }
+                    self.append("GATT \(s.uuid.uuidString.suffix(8)) / \(c.uuid.uuidString.suffix(8)) [\(p.joined(separator: ","))]", out: false)
+                }
+            }
             for c in service.characteristics ?? [] {
                 if c.uuid == PumpLink.charNotify {
                     self.notifyChar = c
@@ -622,6 +642,19 @@ extension PumpLink: CBPeripheralDelegate {
                 self?.requestStatus()
                 self?.startPolling()
             }
+            // 2 秒仍无回帧 → 重写一次订阅描述符（官方也有同样的重试逻辑）
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard let self, self.peripheral?.state == .connected else { return }
+                if self.rxPackets == 0 {
+                    self.append("2 秒无回帧，重写订阅描述符后重发", out: false)
+                    if let n = self.notifyChar { self.peripheral?.setNotifyValue(false, for: n) }
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    if let n = self.notifyChar { self.peripheral?.setNotifyValue(true, for: n) }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    self.requestStatus()
+                }
+            }
         }
     }
 
@@ -636,7 +669,11 @@ extension PumpLink: CBPeripheralDelegate {
         }
         guard let d = characteristic.value else { return }
         let bytes = [UInt8](d)
-        Task { @MainActor in self.ingest(bytes) }
+        Task { @MainActor in
+            self.rxPackets += 1
+            self.append("← RAW#\(self.rxPackets) (\(bytes.count)B) \(Bytes.hex(bytes, separator: " "))", out: false)
+            self.ingest(bytes)
+        }
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
