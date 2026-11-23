@@ -106,8 +106,8 @@ final class PumpLink: NSObject, ObservableObject {
     private var rxBuffer: [UInt8] = []
     private var didLogWriteType = false
     /// 写入方式：默认带响应，能暴露加密/权限错误；泵只认 no-response 时可切
-    @Published var writeWithoutResponse: Bool = UserDefaults.standard.object(forKey: "write.noresp") as? Bool ?? false {
-        didSet { UserDefaults.standard.set(writeWithoutResponse, forKey: "write.noresp") }
+    @Published var writeWithoutResponse: Bool = UserDefaults.standard.object(forKey: "write.noresp.v2") as? Bool ?? false {
+        didSet { UserDefaults.standard.set(writeWithoutResponse, forKey: "write.noresp.v2") }
     }
     private var nextMsgId: UInt16 = 1
     private var pollTimer: Timer?
