@@ -210,7 +210,12 @@ final class PumpLink: NSObject, ObservableObject {
     @discardableResult
     private func write(_ cmd: AppFrame.Cmd, rw: AppFrame.RW, payload: [UInt8] = []) -> UInt16 {
         guard let p = peripheral, let ch = writeChar else {
-            append("未连接，命令被丢弃", out: false); return 0
+            if peripheral != nil {
+                append("⚠️ 写特征 FFE9 未就绪，命令被丢弃（请断开后重连）", out: false)
+            } else {
+                append("未连接，命令被丢弃", out: false)
+            }
+            return 0
         }
         let msgId = nextMsgId
         nextMsgId = nextMsgId == UInt16.max ? 1 : nextMsgId + 1
