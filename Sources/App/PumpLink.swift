@@ -32,6 +32,8 @@ final class PumpLink: NSObject, ObservableObject {
     @Published private(set) var state: LinkState = .idle
     @Published private(set) var devices: [Device] = []
     @Published private(set) var status: PumpStatus?
+    /// 官方回帧解析出的真实设备状态（电量/余量/时钟/三餐预设）
+    @Published private(set) var officialStatus: OfficialStatus?
     @Published private(set) var lastMessage: String = ""
     @Published private(set) var log: [LogLine] = []
     @Published private(set) var history: [HistoryRecord] = []
@@ -402,22 +404,70 @@ final class PumpLink: NSObject, ObservableObject {
         lastRxAt = Date()
         rxBuffer.append(contentsOf: data)
         while rxBuffer.count >= 3 {
-            guard rxBuffer[0] == 0x55 else {
-                if let idx = rxBuffer.firstIndex(of: 0x55) { rxBuffer.removeFirst(idx) }
-                else { rxBuffer.removeAll() }
+            let head = rxBuffer[0]
+            // 回帧：0xAA 头，len = 整帧长度，无 serial
+            if head == 0xAA {
+                let len = Int(rxBuffer[1]) | (Int(rxBuffer[2]) << 8)
+                guard len >= 8, len <= 512 else { rxBuffer.removeFirst(); continue }
+                guard rxBuffer.count >= len else { return }
+                let bytes = Array(rxBuffer[0..<len])
+                rxBuffer.removeFirst(len)
+                handleReply(bytes)
                 continue
             }
-            let len = Int(rxBuffer[1]) | (Int(rxBuffer[2]) << 8)
-            // 官方解析器接受 8–256，短应答（如 0xAA55）只有 20 字节，不能按 AAPS 的 23 卡掉
-            let minLen = (frameVariant == .official) ? 20 : 23
-            guard len >= minLen, len <= 512 else {
-                append("⚠️ 丢弃可疑帧 len=\(len) buf=\(rxBuffer.count)B", out: false)
-                rxBuffer.removeAll(); continue
+            // 下行回显/旧格式：0x55 头
+            if head == 0x55 {
+                let len = Int(rxBuffer[1]) | (Int(rxBuffer[2]) << 8)
+                let minLen = (frameVariant == .official) ? 20 : 23
+                guard len >= minLen, len <= 512 else { rxBuffer.removeFirst(); continue }
+                guard rxBuffer.count >= len else { return }
+                let bytes = Array(rxBuffer[0..<len])
+                rxBuffer.removeFirst(len)
+                handle(bytes)
+                continue
             }
-            guard rxBuffer.count >= len else { return }
-            let frameBytes = Array(rxBuffer[0..<len])
-            rxBuffer.removeFirst(len)
-            handle(frameBytes)
+            rxBuffer.removeFirst()
+        }
+    }
+
+    private func handleReply(_ bytes: [UInt8]) {
+        guard let r = ReplyFrame.decode(bytes) else {
+            append("⚠️ 回帧解析失败 \(Bytes.hex(bytes, separator: " "))", out: false)
+            return
+        }
+        lastReplyHex = Bytes.hex(r.payload, separator: " ")
+        lastReplyCmd = r.rawCmd
+        if r.crcOK { lastValidFrameAt = Date() } else { lastMessage = "⚠️ 回帧 CRC 校验失败" }
+
+        switch r.rawCmd {
+        case 0xAA00:
+            if let s = OfficialStatus.decode(r.payload) {
+                status = nil
+                officialStatus = s
+                lastMessage = String(format: "已读取：电量 %d%% · 余量 %.1fU · 今日 %.1fU",
+                                     s.batteryPercent, s.remainingUnits, s.dayTotaled)
+            } else {
+                lastMessage = "状态帧长度不足（\(r.payload.count)B）"
+            }
+        case 0xAAAA:
+            lastMessage = "泵已确认执行"
+        case 0xAA55:
+            lastMessage = "泵已接受指令"
+        case 0xAAA0:
+            lastMessage = "执行中…"
+        case 0xAA5A:
+            lastMessage = "泵拒绝：参数错误"
+        case 0xAAA5:
+            lastMessage = "泵拒绝：当前状态不允许"
+        case 0x0001:
+            if let b = LastBolus.decode(r.payload) {
+                lastBolus = b
+                lastMessage = String(format: "最近大剂量 %.1fU @ %@", b.bolus, b.time.text)
+            } else {
+                lastMessage = "已收到大剂量记录，解析失败"
+            }
+        default:
+            lastMessage = String(format: "收到回帧 0x%04X（%d 字节）", r.rawCmd, r.payload.count)
         }
     }
 

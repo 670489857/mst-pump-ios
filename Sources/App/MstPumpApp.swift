@@ -101,7 +101,15 @@ struct PumpTab: View {
 
     private var statusSection: some View {
         Section("泵状态") {
-            if let s = link.status {
+            if let s = link.officialStatus {
+                row("电量", "\(s.batteryPercent)%")
+                row("药量剩余", String(format: "%.1f U", s.remainingUnits))
+                row("今日总量", String(format: "%.1f U", s.dayTotaled))
+                row("待输注", String(format: "%.1f U", s.restBolus))
+                row("三餐预设", String(format: "%.1f / %.1f / %.1f U",
+                                   s.breakfast, s.lunch, s.dinner))
+                row("泵内时钟", s.time.text)
+            } else if let s = link.status {
                 row("电量", "\(s.battery)%")
                 row("药量剩余", String(format: "%.1f U", s.boxVolume))
                 row("今日总量", String(format: "%.1f U", s.dayTotaled))
@@ -312,7 +320,7 @@ struct LogTab: View {
                         set: { link.fireAndForget = $0 }))
                     Text("开启后不再等泵应答，所有命令按「已发送」处理；执行结果以泵屏幕为准。")
                         .font(.caption2).foregroundStyle(.secondary)
-                    Text("版本 v\(ver) (build \(build)) · 协议 AAPS demose")
+                    Text("版本 v\(ver) (build \(build)) · 回帧 AA 帧 · 下行 55 帧")
                         .font(.caption2)
                     Text("发送 serial：\(link.frameSerialForDisplay)")
                         .font(.system(.caption2, design: .monospaced))
