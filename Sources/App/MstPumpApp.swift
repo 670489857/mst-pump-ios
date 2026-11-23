@@ -130,7 +130,7 @@ struct PumpTab: View {
             Button("读报警记录") { link.readAlarms() }
             if !link.records.isEmpty {
                 Section("最近记录（共 \(link.records.count) 条）") {
-                    ForEach(link.records.suffix(15).reversed(), id: \.self) { r in
+                    ForEach(Array(link.records.suffix(15).reversed()), id: \.id) { r in
                         HStack {
                             Text(r.kind.title).font(.caption).foregroundStyle(.secondary)
                             Spacer()
