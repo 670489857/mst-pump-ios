@@ -95,7 +95,7 @@ public struct AppFrame {
         out.append(rw.rawValue)
         out.append(UInt8(rawCmd & 0xFF))
         out.append(UInt8(rawCmd >> 8))
-        out.append(contentsOf: ByteBuf.asciiBytes(serial, length: 12))
+        out.append(contentsOf: Self.serialBytes(serial, variant: variant))
         out.append(contentsOf: payload)
         if variant == .legacy {
             out.append(0x01)
@@ -105,6 +105,14 @@ public struct AppFrame {
         let crc = CRC16.modbus(out)
         out.append(UInt8(crc & 0xFF))
         out.append(UInt8(crc >> 8))
+        return out
+    }
+
+    /// 官方 App 用 0x00 补齐 12 字节；AAPS 帧沿用 0x0D 补齐
+    static func serialBytes(_ serial: String, variant: Variant) -> [UInt8] {
+        var out = serial.utf8.map { UInt8($0) }
+        if out.count > 12 { out = Array(out[0..<12]) }
+        while out.count < 12 { out.append(variant == .official ? 0x00 : 0x0D) }
         return out
     }
 
@@ -120,7 +128,7 @@ public struct AppFrame {
         let rawCmd = UInt16(bytes[4]) | (UInt16(bytes[5]) << 8)
 
         let serialBytes = Array(bytes[6..<18])
-        let serial = String(bytes: serialBytes.filter { $0 != 0 }, encoding: .utf8) ?? ""
+        let serial = String(bytes: serialBytes.filter { $0 != 0 && $0 != 0x0D }, encoding: .utf8) ?? ""
 
         let payloadCount = max(0, len - overhead)
         let payload = payloadCount > 0 ? Array(bytes[18..<(18 + payloadCount)]) : []

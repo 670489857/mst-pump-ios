@@ -42,6 +42,7 @@ final class PumpLink: NSObject, ObservableObject {
     @Published private(set) var primeRaw: String = ""
     @Published private(set) var lastRxAt: Date?
     @Published private(set) var lastReplyHex: String = ""
+    @Published private(set) var lastValidFrameAt: Date?
     @Published private(set) var lastReplyCmd: UInt16 = 0
     @Published private(set) var negotiatedMTU: Int = 0
 
@@ -136,9 +137,28 @@ final class PumpLink: NSObject, ObservableObject {
         central.stopScan()
         state = .connecting(device.name)
         lastKnownPeripheralID = device.id
+        UserDefaults.standard.set(device.id.uuidString, forKey: "lastPeripheralID")
         guard let p = central.retrievePeripherals(withIdentifiers: [device.id]).first else {
             state = .failed("无法获取设备句柄，请重新扫描"); return
         }
+        peripheral = p
+        p.delegate = self
+        autoReconnect = true
+        central.connect(p, options: nil)
+    }
+
+    /// 启动/蓝牙就绪后自动连上次的泵，省掉每次重连
+    func autoConnectIfRemembered() {
+        guard state == .idle else { return }
+        if lastKnownPeripheralID == nil,
+           let s = UserDefaults.standard.string(forKey: "lastPeripheralID"),
+           let id = UUID(uuidString: s) {
+            lastKnownPeripheralID = id
+        }
+        guard let id = lastKnownPeripheralID,
+              let p = central.retrievePeripherals(withIdentifiers: [id]).first else { return }
+        append("自动连接上次的泵：\(p.name ?? "-")", out: false)
+        state = .connecting(p.name ?? "上次的泵")
         peripheral = p
         p.delegate = self
         autoReconnect = true
@@ -328,9 +348,11 @@ final class PumpLink: NSObject, ObservableObject {
         probeWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, case .ready = self.state else { return }
-            let answered = (self.lastRxAt ?? .distantPast) > probeStart
+            let answered = (self.lastValidFrameAt ?? .distantPast) > probeStart
             if answered {
-                self.append("✅ 官方帧有应答，保持 official", out: false)
+                self.frameVariant = .official
+                UserDefaults.standard.set("official", forKey: "frame.variant")
+                self.append("✅ 官方帧有应答，已固定为 official", out: false)
                 self.syncTime(); self.startPolling()
             } else {
                 self.frameVariant = .legacy
@@ -339,7 +361,7 @@ final class PumpLink: NSObject, ObservableObject {
                 self.write(.fullStatus, rw: .read)
                 let work2 = DispatchWorkItem { [weak self] in
                     guard let self, case .ready = self.state else { return }
-                    let ok2 = (self.lastRxAt ?? .distantPast) > probeStart
+                    let ok2 = (self.lastValidFrameAt ?? .distantPast) > probeStart
                     self.append(ok2 ? "✅ AAPS 帧有应答，已固定为 legacy" : "❌ 两种帧都无应答：先做系统配对，再试", out: false)
                     self.startPolling()
                 }
@@ -384,6 +406,7 @@ final class PumpLink: NSObject, ObservableObject {
         if !frame.crcOK { lastMessage = "⚠️ CRC 校验失败" }
         lastReplyHex = Bytes.hex(frame.payload, separator: " ")
         lastReplyCmd = frame.rawCmd
+        if frame.crcOK { lastValidFrameAt = Date() }
 
         if let kind = pendingRead, frame.rawCmd == pendingReadCmd {
             pendingRead = nil
@@ -469,6 +492,7 @@ extension PumpLink: CBCentralManagerDelegate {
             switch central.state {
             case .poweredOn:
                 if case .poweredOff = self.state { self.state = .idle }
+                self.autoConnectIfRemembered()
             case .poweredOff:
                 self.state = .poweredOff
             case .unauthorized:
