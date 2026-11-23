@@ -151,6 +151,11 @@ struct PumpTab: View {
 // MARK: - 打药
 
 struct BolusTab: View {
+    static func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
+    }
+
     @ObservedObject var link: PumpLink
 
     @AppStorage("safety.maxBolus") private var maxBolus: Double = 10
@@ -223,6 +228,14 @@ struct BolusTab: View {
                     }
                 }
 
+                Section("日志（键盘可收起）") {
+                    Button("复制最近日志（含泵回报）") {
+                        UIPasteboard.general.string = link.exportLog(limit: 200)
+                        link.setAlert("日志已复制，直接粘贴即可")
+                    }
+                    Button("收起键盘") { Self.hideKeyboard() }
+                }
+
                 Section("临时基础率 TBR") {
                     Stepper("比例 \(tbrPercent)%", value: $tbrPercent, in: 0...maxTbr, step: 10)
                     Stepper("时长 \(tbrMinutes) 分钟", value: $tbrMinutes, in: 15...360, step: 15)
@@ -237,6 +250,10 @@ struct BolusTab: View {
                 }
             }
             .navigationTitle("打药")
+            .toolbar { ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("完成") { Self.hideKeyboard() }
+            } }
             .alert("确认大剂量", isPresented: Binding(
                 get: { confirmBolus != nil }, set: { if !$0 { confirmBolus = nil } })) {
                 Button("取消", role: .cancel) { confirmBolus = nil }
