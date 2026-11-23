@@ -125,9 +125,21 @@ struct PumpTab: View {
                 Text("等待状态…").foregroundStyle(.secondary)
             }
             Button("立即刷新") { link.requestStatus() }
-            Button("读大剂量记录") { link.readBolusIndex() }
+            Button("读大剂量记录") { link.clearRecords(); link.readBolusIndex() }
             Button("读基础率模板") { link.readBasal() }
             Button("读报警记录") { link.readAlarms() }
+            if !link.records.isEmpty {
+                Section("最近记录（共 \(link.records.count) 条）") {
+                    ForEach(link.records.suffix(15).reversed(), id: \.self) { r in
+                        HStack {
+                            Text(r.kind.title).font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Text(String(format: "%.1f U", r.value))
+                            Text(r.time.text).font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
         }
     }
 

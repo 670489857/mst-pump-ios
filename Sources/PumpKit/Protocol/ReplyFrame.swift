@@ -78,3 +78,38 @@ public struct OfficialStatus: Equatable {
             batteryPercent: u16(70) * 25)
     }
 }
+
+/// 泵内记录（应答 cmd 低字节=类型，高字节=索引）
+/// payload = 6 字节时间 + u16 剂量/数值（×10）+ 3 字节标志
+public struct RecordEntry: Equatable {
+    public enum Kind: Int {
+        case bolus = 1, basal = 2, alarm = 3, prime = 4, reset = 5, daily = 6
+        public var title: String {
+            switch self {
+            case .bolus: return "大剂量"
+            case .basal: return "基础率"
+            case .alarm: return "报警"
+            case .prime: return "排气"
+            case .reset: return "复位"
+            case .daily: return "每日"
+            }
+        }
+    }
+
+    public var index: Int
+    public var kind: Kind
+    public var time: PumpTime
+    /// 大剂量时为 U，其余类型含义未验证
+    public var value: Double
+    public var id: String { "\(index)-\(time.text)-\(value)" }
+
+    public static func decode(index: Int, payload: [UInt8]) -> RecordEntry? {
+        guard payload.count >= 8, let kind = Kind(rawValue: index & 0xFF) else { return nil }
+        var y = Int(payload[0])
+        if y < 100 { y += 2000 }
+        let time = PumpTime(year: y, month: Int(payload[1]), day: Int(payload[2]),
+                            hour: Int(payload[3]), minute: Int(payload[4]), second: Int(payload[5]))
+        let raw = Int(payload[6]) | (Int(payload[7]) << 8)
+        return RecordEntry(index: index, kind: kind, time: time, value: Double(raw) / 10)
+    }
+}

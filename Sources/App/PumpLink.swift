@@ -34,6 +34,8 @@ final class PumpLink: NSObject, ObservableObject {
     @Published private(set) var status: PumpStatus?
     /// 官方回帧解析出的真实设备状态（电量/余量/时钟/三餐预设）
     @Published private(set) var officialStatus: OfficialStatus?
+    /// 从泵里读回的历史记录（类型 + 时间 + 数值）
+    @Published private(set) var records: [RecordEntry] = []
     @Published private(set) var lastMessage: String = ""
     @Published private(set) var log: [LogLine] = []
     @Published private(set) var history: [HistoryRecord] = []
@@ -236,6 +238,8 @@ final class PumpLink: NSObject, ObservableObject {
     // MARK: 命令
 
     func requestStatus() { write(.fullStatus, rw: .read) }
+
+    func clearRecords() { records.removeAll() }
 
     /// 读大剂量记录：官方 cmd = {1, index}，index 0xAA 表示“最大索引”
     func readBolusIndex(_ index: UInt8 = 0xAA) {
@@ -461,6 +465,20 @@ final class PumpLink: NSObject, ObservableObject {
         lastReplyCmd = r.rawCmd
         if r.crcOK { lastValidFrameAt = Date() } else { lastMessage = "⚠️ 回帧 CRC 校验失败" }
 
+        // 记录帧：cmd 低字节=类型（1 大剂量 / 3 报警 …），高字节=索引，0xAA 为列表结束
+        let kindByte = Int(r.rawCmd & 0xFF)
+        let indexByte = Int(r.rawCmd >> 8)
+        if indexByte > 0 && indexByte != 0xAA, kindByte >= 1, kindByte <= 6,
+           let e = RecordEntry.decode(index: kindByte, payload: r.payload) {
+            records.append(e)
+            if records.count > 300 { records.removeFirst(records.count - 300) }
+            lastMessage = String(format: "%@ %.1fU @ %@", e.kind.title, e.value, e.time.text)
+            return
+        }
+        if r.rawCmd == 0xAA01 {
+            lastMessage = "记录列表结束，共 \(records.count) 条"
+            return
+        }
         switch r.rawCmd {
         case 0xAA00:
             if let s = OfficialStatus.decode(r.payload) {
