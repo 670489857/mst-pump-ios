@@ -10,6 +10,8 @@ final class PumpLink: NSObject, ObservableObject {
     enum LinkState: Equatable {
         case idle, poweredOff, scanning, connecting(String), ready
         case failed(String)
+
+        var isReady: Bool { if case .ready = self { return true }; return false }
     }
 
     struct Device: Identifiable, Equatable {
@@ -39,6 +41,8 @@ final class PumpLink: NSObject, ObservableObject {
     @Published private(set) var alarmsRaw: String = ""
     @Published private(set) var primeRaw: String = ""
     @Published private(set) var lastRxAt: Date?
+    @Published private(set) var lastReplyHex: String = ""
+    @Published private(set) var lastReplyCmd: UInt16 = 0
     @Published private(set) var negotiatedMTU: Int = 0
 
     private(set) var pumpSerial: String = ""
@@ -94,6 +98,9 @@ final class PumpLink: NSObject, ObservableObject {
     private var reconnectWork: DispatchWorkItem?
     private var probeWork: DispatchWorkItem?
     private var noReplyWork: DispatchWorkItem?
+    private enum PendingRead: Equatable { case lastBolus, alarms, prime }
+    private var pendingRead: PendingRead?
+    private var pendingReadCmd: UInt16 = 0
     /// 连接后先用官方帧试一发，3.5 秒无应答自动改发 AAPS 帧
     @Published var autoProbe: Bool = UserDefaults.standard.object(forKey: "auto.probe") as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoProbe, forKey: "auto.probe") }
@@ -236,22 +243,48 @@ final class PumpLink: NSObject, ObservableObject {
     /// 读历史大剂量记录：反复发 GHBRq，直到收到 GBRDRp（0xAA02 读）为止
     func fetchHistory() {
         history.removeAll()
+        pendingRead = nil
         pendingHistory = true
         write(.history, rw: .read, payload: frameVariant == .official ? [0xAA] : [])
         append("读取历史记录…", out: false)
     }
 
-    func fetchLastBolus() { write(.lastBolus, rw: .read) }
+    func fetchLastBolus() {
+        readWithFallback(AppFrame.Cmd(rawValue: 0xAA01), alt: .lastBolus, kind: .lastBolus)
+    }
     func fetchBasal() { write(.lastBaseRate, rw: .read) }
 
     func fetchAlarms() {
         alarmsRaw = ""
-        write(.alarms, rw: .read)
+        readWithFallback(AppFrame.Cmd(rawValue: 0xAA03), alt: .alarms, kind: .alarms)
     }
 
     func fetchPrime() {
         primeRaw = ""
-        write(.prime, rw: .read)
+        readWithFallback(AppFrame.Cmd(rawValue: 0xAA04), alt: .prime, kind: .prime)
+    }
+
+    /// 先发官方「最大索引」读取码，3 秒无回帧自动改发 AAPS 读取码；再无回应给出提示
+    private func readWithFallback(_ primary: AppFrame.Cmd, alt: AppFrame.Cmd, kind: PendingRead) {
+        guard case .ready = state else { setAlert("未连接，先连接泵"); return }
+        pendingRead = kind
+        pendingReadCmd = primary.rawValue
+        let start = Date()
+        write(primary, rw: .read)
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard let self, self.pendingRead == kind else { return }
+            guard (self.lastRxAt ?? .distantPast) < start else { return }
+            self.append("无应答，改发备用读取码 0x\(String(format: "%04X", alt.rawValue))", out: false)
+            self.pendingReadCmd = alt.rawValue
+            self.write(alt, rw: .read)
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard self.pendingRead == kind else { return }
+            guard (self.lastRxAt ?? .distantPast) < start else { return }
+            self.pendingRead = nil
+            self.setAlert("两个读取码都无回帧：泵可能要求系统配对，或该记录为空")
+        }
     }
 
     /// 直接把一串 HEX 写到 FFE9（调试用，不带任何封装）
@@ -349,6 +382,24 @@ final class PumpLink: NSObject, ObservableObject {
             lastMessage = "帧解析失败"; return
         }
         if !frame.crcOK { lastMessage = "⚠️ CRC 校验失败" }
+        lastReplyHex = Bytes.hex(frame.payload, separator: " ")
+        lastReplyCmd = frame.rawCmd
+
+        if let kind = pendingRead, frame.rawCmd == pendingReadCmd {
+            pendingRead = nil
+            switch kind {
+            case .lastBolus:
+                lastBolus = LastBolus.decode(frame.payload)
+                lastMessage = lastBolus == nil ? "已收到回帧，但解析失败（见原始数据）" : "已读取最近大剂量"
+            case .alarms:
+                alarmsRaw = lastReplyHex
+                lastMessage = "已读取报警数据"
+            case .prime:
+                primeRaw = lastReplyHex
+                lastMessage = "已读取排气数据"
+            }
+            return
+        }
 
         switch frame.cmd {
         case .fullStatus:
