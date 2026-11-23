@@ -42,7 +42,7 @@ struct PumpTab: View {
                 Section {
                     HStack {
                         Spacer()
-                        MedNovoDeviceView(link: link)
+                        MedNovoDeviceView()
                             .padding(.vertical, 6)
                         Spacer()
                     }

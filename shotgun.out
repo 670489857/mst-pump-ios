@@ -661,3 +661,9 @@ urllib.error.HTTPError: HTTP Error 403: Forbidden
 [07:04:27] 回归单人模式，等待 run 45285160711 构建结果
 [07:04:58] run 45285160711 → completed/success
 [07:05:02] ✅ IPA 已下载: /home/user/Doubao/chats/38454483459015938/mst-pump-ios/out/MstPump-unsigned.ipa (250 KB)
+[07:21:35] 广撒网启动：每轮挂 5 个 macos-15
+[07:21:41] 投出 run 45288113247（在飞 1）
+[07:21:46] 投出 run 45288127493（在飞 2）
+[07:21:52] 投出 run 45288141231（在飞 3）
+[07:21:58] 投出 run 45288156016（在飞 4）
+[07:22:04] 投出 run 45288169519（在飞 5）
