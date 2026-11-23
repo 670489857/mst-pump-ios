@@ -301,6 +301,11 @@ struct LogTab: View {
                 Section("当前生效参数") {
                     let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
                     let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+                    Toggle("只写不确认（泵不回帧也照发）", isOn: Binding(
+                        get: { link.fireAndForget },
+                        set: { link.fireAndForget = $0 }))
+                    Text("开启后不再等泵应答，所有命令按「已发送」处理；执行结果以泵屏幕为准。")
+                        .font(.caption2).foregroundStyle(.secondary)
                     Text("版本 v\(ver) (build \(build)) · 协议 AAPS demose")
                         .font(.caption2)
                     Text("发送 serial：\(link.frameSerialForDisplay)")

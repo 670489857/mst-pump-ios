@@ -50,6 +50,11 @@ final class PumpLink: NSObject, ObservableObject {
     private var lastKnownPeripheralID: UUID?
 
     /// 手动覆盖帧里的 12 字节 serial（留空则用蓝牙名）
+    /// 只写不确认：泵不回帧也照发，命令按「已发送」处理，人工在泵屏幕核对
+    @Published var fireAndForget: Bool = UserDefaults.standard.object(forKey: "ff.mode") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(fireAndForget, forKey: "ff.mode") }
+    }
+
     @Published var serialOverride: String = UserDefaults.standard.string(forKey: "serial.override") ?? "" {
         didSet { UserDefaults.standard.set(serialOverride, forKey: "serial.override") }
     }
@@ -196,7 +201,11 @@ final class PumpLink: NSObject, ObservableObject {
             append("⚠️ 帧 \(bytes.count)B 超过协商上限 \(negotiatedMTU)B", out: false)
         }
         p.writeValue(Data(bytes), for: ch, type: .withResponse)
-        armNoReplyGuard()
+        if fireAndForget {
+            lastMessage = "已发送（未确认）：请到泵屏幕核对"
+        } else {
+            armNoReplyGuard()
+        }
         return msgId
     }
 
@@ -586,7 +595,7 @@ extension PumpLink: CBPeripheralDelegate {
 extension PumpLink {
     private func startPolling() {
         pollTimer?.invalidate()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.requestStatus() }
         }
     }
