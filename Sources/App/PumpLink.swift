@@ -104,7 +104,7 @@ final class PumpLink: NSObject, ObservableObject {
     private var pendingReadCmd: UInt16 = 0
     /// 连接后先用官方帧试一发，3.5 秒无应答自动改发 AAPS 帧
     /// 写入方式：带响应（默认）/ 不带响应。泵若只认其中一种，切换后能立刻看出差别
-    @Published var writeWithoutResponse: Bool = UserDefaults.standard.bool(forKey: "write.noresp") {
+    @Published var writeWithoutResponse: Bool = UserDefaults.standard.object(forKey: "write.noresp") as? Bool ?? true {
         didSet { UserDefaults.standard.set(writeWithoutResponse, forKey: "write.noresp") }
     }
     @Published var autoProbe: Bool = UserDefaults.standard.object(forKey: "auto.probe") as? Bool ?? true {
@@ -587,17 +587,28 @@ extension PumpLink: CBPeripheralDelegate {
             }
             guard self.writeChar != nil, self.notifyChar != nil, self.state != .ready else { return }
             self.pumpSerial = peripheral.name ?? ""
-            self.state = .ready
-            self.negotiatedMTU = peripheral.maximumWriteValueLength(for: .withResponse)
-            self.append("就绪，泵 serial = \(self.pumpSerial)，写入上限 \(self.negotiatedMTU)B", out: false)
-            self.startProbe()
+            self.append("特征就绪，等待通知开启…", out: false)
         }
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         Task { @MainActor in
-            if let e = error { self.append("开启通知失败：\(e.localizedDescription)", out: false) }
-            else { self.append("通知已开启", out: false) }
+            if let e = error {
+                self.append("开启通知失败：\(e.localizedDescription)", out: false)
+                return
+            }
+            guard characteristic.isNotifying, self.state != .ready else {
+                self.append("通知已开启", out: false)
+                return
+            }
+            self.state = .ready
+            let mtu = self.peripheral?.maximumWriteValueLength(for: self.writeWithoutResponse ? .withoutResponse : .withResponse) ?? 0
+            self.negotiatedMTU = mtu
+            self.append("就绪，serial = \(self.pumpSerial)，上限 \(mtu)B，写入=\(self.writeWithoutResponse ? "无响应" : "带响应")", out: false)
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                self?.startProbe()
+            }
         }
     }
 
