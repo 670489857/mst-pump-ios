@@ -105,7 +105,7 @@ struct PumpTab: View {
                 row("电量", "\(s.batteryPercent)%")
                 row("药量剩余", String(format: "%.1f U", s.remainingUnits))
                 row("今日总量", String(format: "%.1f U", s.dayTotaled))
-                row("待输注", String(format: "%.1f U", s.restBolus))
+                row("上次大剂量", String(format: "%.1f U", s.restBolus))
                 row("三餐预设", String(format: "%.1f / %.1f / %.1f U",
                                    s.breakfast, s.lunch, s.dinner))
                 row("泵内时钟", s.time.text)

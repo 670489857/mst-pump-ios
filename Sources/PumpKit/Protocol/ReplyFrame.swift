@@ -41,7 +41,7 @@ public struct OfficialStatus: Equatable {
     public var remainingUnits: Double
     /// 今日总量（U）
     public var dayTotaled: Double
-    /// 待输注（U）
+    /// 官方字段名 restBolus，实测含义是「上一次大剂量的剂量」（不是剩余待输注量）
     public var restBolus: Double
     /// 电量百分比（原始值 ×25）
     public var batteryPercent: Int
