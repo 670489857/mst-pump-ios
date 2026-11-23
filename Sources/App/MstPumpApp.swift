@@ -314,6 +314,16 @@ struct LogTab: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("当前生效参数") {
+                    let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+                    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+                    Text("版本 v\(ver) (build \(build))")
+                        .font(.caption2)
+                    Text("协议 \(link.frameVariant.title) · 写入 \(link.writeWithoutResponse ? "无响应" : "带响应") · 探测 \(link.autoProbe ? "开" : "关")")
+                        .font(.caption2).foregroundStyle(.secondary)
+                    Button("恢复官方默认（帧/写入/探测/serial）") { link.resetToOfficialDefaults() }
+                        .font(.footnote)
+                }
                 Section("帧格式") {
                     Picker("协议", selection: Binding(
                         get: { link.frameVariant },

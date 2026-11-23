@@ -353,6 +353,8 @@ final class PumpLink: NSObject, ObservableObject {
         guard autoProbe else {
             syncTime(); requestStatus(); startPolling(); return
         }
+        frameVariant = .official
+        UserDefaults.standard.set("official", forKey: "frame.variant")
         let probeStart = Date()
         append("协议探测：先发官方帧读状态…", out: false)
         write(.fullStatus, rw: .read)
@@ -382,6 +384,17 @@ final class PumpLink: NSObject, ObservableObject {
         }
         probeWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5, execute: work)
+    }
+
+    /// 一键恢复官方默认：官方帧 + 不带响应写 + 自动探测 + 清空 serial 覆盖
+    func resetToOfficialDefaults() {
+        frameVariant = .official
+        UserDefaults.standard.set("official", forKey: "frame.variant")
+        writeWithoutResponse = true
+        autoProbe = true
+        serialOverride = ""
+        UserDefaults.standard.removeObject(forKey: "serial.override")
+        append("已恢复默认：official / 无响应写 / 自动探测 / serial 用蓝牙名", out: false)
     }
 
     func setAlert(_ text: String) {
@@ -483,7 +496,10 @@ final class PumpLink: NSObject, ObservableObject {
     /// 导出日志文本（供复制粘贴）
     func exportLog(limit: Int = 100) -> String {
         let batch = log.prefix(limit).reversed()
-        var head = "迈世通泵 v0.1 诊断日志\nserial=\(frameSerial) variant=\(frameVariant.rawValue) mtu=\(negotiatedMTU)\n"
+        let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        var head = "迈世通泵 v\(ver) (build \(build))\n"
+        head += "serial=\(frameSerial) variant=\(frameVariant.rawValue) 写入=\(writeWithoutResponse ? "无响应" : "带响应") autoProbe=\(autoProbe) mtu=\(negotiatedMTU)\n"
         head += batch.map { ($0.outbound ? "→ " : "← ") + $0.text }.joined(separator: "\n")
         return head
     }
